@@ -30,6 +30,10 @@ See [Getting started](docs/getting-started.md) for authentication, Codex, and
 ChatGPT setup. The architecture and acceptance criteria are in the
 [design specification](docs/design-spec.md).
 
+Before approving dbt execution, run the offline and live readiness checks in
+[Operational readiness](docs/operations.md). The same guide covers non-mutating
+IAM verification, the validation ladder, and trusted release publishing.
+
 ## Safety model
 
 - strict repository roots and writable-path allowlists;

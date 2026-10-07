@@ -37,6 +37,29 @@ class BigQueryProvider:
             },
         }
 
+    def health_check(self) -> dict[str, Any]:
+        client = self._get_client()
+        datasets: list[dict[str, Any]] = []
+        for dataset in self.warehouse.read_datasets:
+            try:
+                metadata = client.get_dataset(f"{self.warehouse.project}.{dataset}")
+                datasets.append(
+                    {
+                        "dataset": dataset,
+                        "ok": True,
+                        "location": metadata.location,
+                    }
+                )
+            except Exception as exc:
+                datasets.append({"dataset": dataset, "ok": False, "error": str(exc)})
+        query = self.execute_read("select 1 as ok")
+        return {
+            "ok": all(dataset["ok"] for dataset in datasets),
+            "project": self.warehouse.project,
+            "datasets": datasets,
+            "query_job_id": query["job_id"],
+        }
+
     def describe_relation(self, relation: str) -> dict[str, Any]:
         project, dataset, table = self._parse_relation(relation)
         client = self._get_client()
