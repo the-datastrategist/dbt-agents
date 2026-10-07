@@ -1,0 +1,10 @@
+.git
+.venv
+.dbt-agents
+__pycache__
+.pytest_cache
+.ruff_cache
+dist
+build
+*.egg-info
+

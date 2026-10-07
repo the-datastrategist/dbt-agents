@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://the-datastrategist.github.io/dbt-agents/config.schema.json",
+  "title": "dbt-agents configuration",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "projects"],
+  "properties": {
+    "version": {"const": 1},
+    "projects": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {"$ref": "#/$defs/project"}
+    }
+  },
+  "$defs": {
+    "project": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repo_root", "dbt_project_dir", "warehouse"],
+      "properties": {
+        "repo_root": {"type": "string", "minLength": 1},
+        "git_root": {"type": ["string", "null"]},
+        "dbt_project_dir": {"type": "string", "minLength": 1},
+        "writable_paths": {"type": "array", "items": {"type": "string"}},
+        "protected_paths": {"type": "array", "items": {"type": "string"}},
+        "audit_dir": {"type": "string"},
+        "dbt": {"$ref": "#/$defs/dbt"},
+        "warehouse": {"$ref": "#/$defs/warehouse"},
+        "limits": {"$ref": "#/$defs/limits"}
+      }
+    },
+    "dbt": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "executable": {"type": "string", "default": "dbt"},
+        "profiles_dir": {"type": "string", "default": "profiles"},
+        "default_target": {"type": "string", "default": "dev"},
+        "production_targets": {"type": "array", "items": {"type": "string"}},
+        "allowed_commands": {"type": "array", "items": {"enum": ["deps", "parse", "compile", "list", "test", "run", "build"]}},
+        "allow_full_refresh": {"type": "boolean", "default": false},
+        "target_datasets": {"type": "object", "additionalProperties": {"type": "string"}},
+        "environment": {"type": "object", "additionalProperties": {"type": "string"}}
+      }
+    },
+    "warehouse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["project", "read_datasets", "dbt_write_datasets"],
+      "properties": {
+        "provider": {"type": "string", "default": "bigquery"},
+        "project": {"type": "string", "minLength": 1},
+        "location": {"type": "string", "default": "US"},
+        "default_dataset": {"type": ["string", "null"]},
+        "read_datasets": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "dbt_write_datasets": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "forbidden_write_datasets": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "allow_raw_rows": {"type": "boolean", "default": false},
+        "protected_columns": {"type": "array", "items": {"type": "string"}},
+        "auth": {"$ref": "#/$defs/auth"}
+      }
+    },
+    "auth": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "mode": {"enum": ["adc", "impersonation", "service_account_file", "workload_identity"]},
+        "query_service_account_env": {"type": ["string", "null"]},
+        "dbt_service_account_env": {"type": ["string", "null"]},
+        "query_credentials_file_env": {"type": "string"},
+        "dbt_credentials_file_env": {"type": "string"}
+      }
+    },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "query_max_bytes_billed": {"type": "integer", "minimum": 1},
+        "query_timeout_seconds": {"type": "integer", "minimum": 1, "maximum": 3600},
+        "query_max_rows": {"type": "integer", "minimum": 1, "maximum": 100000},
+        "query_max_result_bytes": {"type": "integer", "minimum": 1024},
+        "query_max_cell_chars": {"type": "integer", "minimum": 32},
+        "dbt_timeout_seconds": {"type": "integer", "minimum": 1, "maximum": 86400},
+        "file_max_bytes": {"type": "integer", "minimum": 1024},
+        "search_max_matches": {"type": "integer", "minimum": 1, "maximum": 10000}
+      }
+    }
+  }
+}

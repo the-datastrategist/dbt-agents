@@ -1,0 +1,5 @@
+# Merge this block into ~/.codex/config.toml and replace the placeholder paths.
+[mcp_servers.dbt_agents]
+command = "/ABSOLUTE/PATH/TO/dbt-agents/.venv/bin/dbt-agents-mcp"
+args = ["--config", "/ABSOLUTE/PATH/TO/dbt-agents/dbt-agents.yml", "--transport", "stdio"]
+

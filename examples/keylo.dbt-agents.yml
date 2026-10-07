@@ -1,0 +1,82 @@
+version: 1
+
+projects:
+  keylo:
+    repo_root: /Users/gordonsilvera/Repos/theDataStrategist/keylo
+    git_root: keylo-dbt
+    dbt_project_dir: keylo-dbt
+    audit_dir: /Users/gordonsilvera/Repos/theDataStrategist/dbt-agents/.dbt-agents/keylo
+
+    writable_paths:
+      - keylo-dbt/models/**
+      - keylo-dbt/macros/**
+      - keylo-dbt/tests/**
+      - keylo-dbt/seeds/**
+      - keylo-dbt/snapshots/**
+      - keylo-dbt/analyses/**
+      - keylo-dbt/docs/**
+      - keylo-dbt/specs/**
+      - keylo-dbt/dbt_project.yml
+      - keylo-dbt/packages.yml
+
+    protected_paths:
+      - "**/.env*"
+      - "**/*credential*"
+      - "**/*service-account*"
+      - "**/*-????????????.json"
+      - "**/*.pem"
+      - "**/*.key"
+      - "**/.git/**"
+
+    dbt:
+      executable: dbt
+      profiles_dir: profiles
+      default_target: dev
+      production_targets: [prod]
+      allowed_commands: [deps, parse, compile, list, test, run, build]
+      allow_full_refresh: false
+      target_datasets:
+        dev: keylo_dbt_staging
+        ci: keylo_dbt_ci
+        prod: keylo_dbt_staging
+      environment:
+        DBT_SOURCE_PROJECT: verdant-abacus-481415-d2
+        DBT_SOURCE_DATASET: vertex_dev
+        DBT_BIGQUERY_LOCATION: US
+
+    warehouse:
+      provider: bigquery
+      project: verdant-abacus-481415-d2
+      location: US
+      read_datasets:
+        - vertex_dev
+        - keylo_dbt_staging
+        - keylo_dbt_intermediate
+        - keylo_dbt_marts
+        - keylo_dbt_audit
+        - keylo_dbt_ci
+      dbt_write_datasets:
+        - keylo_dbt_staging
+        - keylo_dbt_intermediate
+        - keylo_dbt_marts
+        - keylo_dbt_audit
+        - keylo_dbt_ci
+      forbidden_write_datasets: [vertex_dev]
+      allow_raw_rows: true
+      protected_columns: []
+      auth:
+        mode: adc
+        query_service_account_env: DBT_AGENTS_QUERY_SERVICE_ACCOUNT
+        dbt_service_account_env: DBT_AGENTS_DBT_SERVICE_ACCOUNT
+        query_credentials_file_env: DBT_AGENTS_QUERY_CREDENTIALS
+        dbt_credentials_file_env: DBT_AGENTS_DBT_CREDENTIALS
+
+    limits:
+      query_max_bytes_billed: 1000000000
+      query_timeout_seconds: 60
+      query_max_rows: 1000
+      query_max_result_bytes: 2000000
+      query_max_cell_chars: 10000
+      dbt_timeout_seconds: 900
+      file_max_bytes: 1000000
+      search_max_matches: 200
