@@ -26,6 +26,6 @@ def test_reusable_ci_workflow_uses_oidc_and_an_immutable_input_ref() -> None:
     workflow = (ROOT / ".github/workflows/keylo-dbt-validation.yml").read_text()
     assert "workflow_call:" in workflow
     assert "id-token: write" in workflow
-    assert "google-github-actions/auth@v2" in workflow
+    assert "google-github-actions/auth@v3" in workflow
     assert "dbt_agents_ref" in workflow
     assert "keylo_dbt_ci" in workflow
