@@ -1,0 +1,66 @@
+name: Keylo dbt validation
+
+on:
+  workflow_call:
+    inputs:
+      selector:
+        description: Approved dbt selector to compile and test in the CI dataset.
+        required: false
+        default: dbt_project_smoke_test
+        type: string
+      dbt_agents_ref:
+        description: Immutable dbt-agents revision to use.
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  validate:
+    name: Validate targeted dbt resources
+    runs-on: ubuntu-latest
+    environment: dbt-ci
+    steps:
+      - name: Check out Keylo dbt project
+        uses: actions/checkout@v4
+        with:
+          path: keylo
+
+      - name: Check out dbt-agents
+        uses: actions/checkout@v4
+        with:
+          repository: the-datastrategist/dbt-agents
+          ref: ${{ inputs.dbt_agents_ref }}
+          path: dbt-agents
+
+      - name: Authenticate to Google Cloud with GitHub OIDC
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/27765964512/locations/global/workloadIdentityPools/keylo-dbt-github/providers/github-actions
+          service_account: keylo-dbt-runner@verdant-abacus-481415-d2.iam.gserviceaccount.com
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: dbt-agents/pyproject.toml
+
+      - name: Install dbt-agents
+        working-directory: dbt-agents
+        run: python -m pip install -e '.[all,dev]'
+
+      - name: Validate selected dbt resources in the isolated CI dataset
+        working-directory: dbt-agents
+        env:
+          DBT_AGENTS_CI_PROFILES_DIR: ${{ runner.temp }}/dbt-profiles
+          DBT_GCP_PROJECT_ID: verdant-abacus-481415-d2
+          DBT_TARGET: ci
+          DBT_TARGET_DATASET: keylo_dbt_ci
+        run: |
+          mkdir -p "$DBT_AGENTS_CI_PROFILES_DIR"
+          cp examples/keylo-ci.profiles.yml "$DBT_AGENTS_CI_PROFILES_DIR/profiles.yml"
+          dbt-agents doctor keylo --config examples/keylo-ci.dbt-agents.yml
+          dbt-agents validate keylo --selector '${{ inputs.selector }}' --target ci --with-tests --approve --config examples/keylo-ci.dbt-agents.yml

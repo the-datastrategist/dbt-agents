@@ -65,6 +65,13 @@ class DbtAdapter:
                 nodes.append(value)
         if not nodes:
             raise PolicyDenied("dbt selector resolved to no nodes", {"selector": selector})
+        manifest = self._read_json(self.project_dir / "target" / "manifest.json", required=False)
+        manifest_nodes = manifest.get("nodes", {})
+        for node in nodes:
+            resolved = manifest_nodes.get(node["unique_id"], {})
+            for field in ("database", "schema", "alias", "relation_name"):
+                if field in resolved:
+                    node[field] = resolved[field]
         return nodes
 
     def run(

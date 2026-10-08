@@ -8,8 +8,11 @@ from typing import Any
 import typer
 
 from .config import load_config
+from .doctor import Doctor
+from .iam import BigQueryIam
 from .server import run_server
 from .service import DbtAgentsService
+from .validation import ValidationWorkflow
 
 app = typer.Typer(no_args_is_help=True, help="Policy-enforced dbt and warehouse tools.")
 
@@ -35,6 +38,73 @@ def check_config(
     """Validate configuration without connecting to the warehouse."""
     value = load_config(config)
     typer.echo(json.dumps({"valid": True, "projects": sorted(value.projects)}, indent=2))
+
+
+@app.command("doctor")
+def doctor(
+    project: str,
+    live: bool = typer.Option(False, "--live", help="Also call BigQuery read APIs"),
+    config: Path = typer.Option(_config_option(), exists=True, dir_okay=False),
+) -> None:
+    """Check local configuration, tools, credentials, and optional live access."""
+    loaded = load_config(config)
+    if project not in loaded.projects:
+        raise typer.BadParameter(f"unknown project: {project}")
+    _print(Doctor(loaded.projects[project]).run(live=live))
+
+
+@app.command("iam-plan")
+def iam_plan(
+    project: str,
+    query_identity: str | None = typer.Option(None),
+    dbt_identity: str | None = typer.Option(None),
+    config: Path = typer.Option(_config_option(), exists=True, dir_okay=False),
+) -> None:
+    """Print the required two-identity BigQuery bindings without applying them."""
+    loaded = load_config(config)
+    if project not in loaded.projects:
+        raise typer.BadParameter(f"unknown project: {project}")
+    _print(
+        {
+            "ok": True,
+            **BigQueryIam(loaded.projects[project]).plan(query_identity, dbt_identity),
+        }
+    )
+
+
+@app.command("iam-verify")
+def iam_verify(
+    project: str,
+    query_identity: str | None = typer.Option(None),
+    dbt_identity: str | None = typer.Option(None),
+    config: Path = typer.Option(_config_option(), exists=True, dir_okay=False),
+) -> None:
+    """Inspect project and dataset policies without attempting a negative write."""
+    loaded = load_config(config)
+    if project not in loaded.projects:
+        raise typer.BadParameter(f"unknown project: {project}")
+    _print(BigQueryIam(loaded.projects[project]).verify(query_identity, dbt_identity))
+
+
+@app.command("iam-apply")
+def iam_apply(
+    project: str,
+    query_identity: str = typer.Option(...),
+    dbt_identity: str = typer.Option(...),
+    approve: bool = typer.Option(False, "--approve"),
+    config: Path = typer.Option(_config_option(), exists=True, dir_okay=False),
+) -> None:
+    """Idempotently provision the reviewed two-identity BigQuery boundary."""
+    loaded = load_config(config)
+    if project not in loaded.projects:
+        raise typer.BadParameter(f"unknown project: {project}")
+    _print(
+        BigQueryIam(loaded.projects[project]).apply(
+            query_identity=query_identity,
+            dbt_identity=dbt_identity,
+            approved=approve,
+        )
+    )
 
 
 @app.command("project")
@@ -111,6 +181,28 @@ def warehouse_query(
     config: Path = typer.Option(_config_option(), exists=True, dir_okay=False),
 ) -> None:
     _print(_service(config).warehouse_query(project, sql, dry_run))
+
+
+@app.command("validate")
+def validate(
+    project: str,
+    selector: str | None = None,
+    target: str | None = None,
+    with_tests: bool = typer.Option(False, "--with-tests"),
+    approve: bool = typer.Option(False, "--approve"),
+    config: Path = typer.Option(_config_option(), exists=True, dir_okay=False),
+) -> None:
+    """Run Git status, dbt compile, and optionally approved targeted dbt tests."""
+    workflow = ValidationWorkflow(_service(config))
+    _print(
+        workflow.run(
+            project,
+            selector=selector,
+            target=target,
+            with_tests=with_tests,
+            approved=approve,
+        )
+    )
 
 
 @app.command("plan")

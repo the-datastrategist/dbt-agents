@@ -1,0 +1,79 @@
+version: 1
+
+# This configuration is for the reusable GitHub Actions workflow. It deliberately
+# permits dbt writes only to the isolated CI dataset and relies on OIDC-provided
+# workload identity credentials; it contains no credentials itself.
+projects:
+  keylo:
+    repo_root: ${GITHUB_WORKSPACE}/keylo
+    git_root: .
+    dbt_project_dir: .
+    audit_dir: ${RUNNER_TEMP}/dbt-agents/keylo
+
+    writable_paths:
+      - models/**
+      - macros/**
+      - tests/**
+      - seeds/**
+      - snapshots/**
+      - analyses/**
+      - docs/**
+      - specs/**
+      - dbt_project.yml
+      - packages.yml
+
+    protected_paths:
+      - "**/.env*"
+      - "**/*credential*"
+      - "**/*service-account*"
+      - "**/*-????????????.json"
+      - "**/*.pem"
+      - "**/*.key"
+      - "**/.git/**"
+
+    dbt:
+      executable: dbt
+      profiles_dir: ${DBT_AGENTS_CI_PROFILES_DIR}
+      default_target: ci
+      production_targets: [prod]
+      allowed_commands: [deps, parse, compile, list, test, run, build]
+      allow_full_refresh: false
+      target_datasets:
+        ci: keylo_dbt_ci
+      environment:
+        DBT_SOURCE_PROJECT: verdant-abacus-481415-d2
+        DBT_SOURCE_DATASET: vertex_dev
+        DBT_BIGQUERY_LOCATION: US
+
+    warehouse:
+      provider: bigquery
+      project: verdant-abacus-481415-d2
+      location: US
+      read_datasets:
+        - vertex_dev
+        - keylo_dbt_staging
+        - keylo_dbt_intermediate
+        - keylo_dbt_marts
+        - keylo_dbt_audit
+        - keylo_dbt_ci
+      dbt_write_datasets: [keylo_dbt_ci]
+      forbidden_write_datasets:
+        - vertex_dev
+        - keylo_dbt_staging
+        - keylo_dbt_intermediate
+        - keylo_dbt_marts
+        - keylo_dbt_audit
+      allow_raw_rows: false
+      protected_columns: []
+      auth:
+        mode: workload_identity
+
+    limits:
+      query_max_bytes_billed: 1000000000
+      query_timeout_seconds: 60
+      query_max_rows: 100
+      query_max_result_bytes: 2000000
+      query_max_cell_chars: 10000
+      dbt_timeout_seconds: 900
+      file_max_bytes: 1000000
+      search_max_matches: 200
