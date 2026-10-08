@@ -24,12 +24,12 @@ jobs:
     environment: dbt-ci
     steps:
       - name: Check out Keylo dbt project
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           path: keylo
 
       - name: Check out dbt-agents
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: the-datastrategist/dbt-agents
           ref: ${{ inputs.dbt_agents_ref }}
