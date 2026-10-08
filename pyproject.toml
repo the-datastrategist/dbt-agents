@@ -30,7 +30,7 @@ mcp = ["mcp>=1.26,<2"]
 bigquery = [
   "google-auth>=2.30,<3",
   "google-cloud-bigquery>=3.25,<4",
-  "sqlglot>=26,<29",
+  "sqlglot>=26,<31",
 ]
 dbt-bigquery = [
   "dbt-core>=1.10,<1.12",
@@ -45,7 +45,7 @@ all = [
   "mcp>=1.26,<2",
   "google-auth>=2.30,<3",
   "google-cloud-bigquery>=3.25,<4",
-  "sqlglot>=26,<29",
+  "sqlglot>=26,<31",
   "dbt-core>=1.10,<1.12",
   "dbt-bigquery>=1.10,<1.12",
 ]
