@@ -61,7 +61,10 @@ dbt-agents warehouse-query keylo \
 
 Install the package and merge the example from
 `examples/codex-config.toml` into `~/.codex/config.toml`. Use absolute paths so
-Codex can start the stdio process reliably.
+Codex can start the stdio process reliably. For the Keylo two-identity setup,
+configure the query and dbt-runner service-account email environment variables
+as shown in [Operational readiness](operations.md#local-impersonation), then
+reload Codex before expecting the server to appear.
 
 ## ChatGPT web
 
@@ -77,7 +80,9 @@ dbt-agents serve --config dbt-agents.yml \
 The MCP endpoint is `http://127.0.0.1:8765/mcp`. Configure the tunnel/client to
 send `Authorization: Bearer <random secret>`. The server refuses non-loopback
 bindings in v1 and refuses unauthenticated HTTP unless the explicitly unsafe
-development flag is supplied.
+development flag is supplied. Keep the local process running for the life of
+the tunnel, and never place the bearer token in the endpoint URL, repository
+configuration, or a client prompt.
 
 OpenAI's current documentation describes stdio and environment-local HTTP MCP
 connections and recommends absolute working directories for stdio. See

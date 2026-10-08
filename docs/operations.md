@@ -128,3 +128,24 @@ workflow uses GitHub OIDC and never stores a Google service-account key.
 The release workflow builds and tests tagged revisions, then uses PyPI trusted
 publishing from the protected `pypi` GitHub environment. Configure that
 environment and the PyPI trusted publisher before pushing a `v*` tag.
+
+### First PyPI publication
+
+Do this once, using an owner account for the target PyPI project:
+
+1. Create the `pypi` GitHub environment in the repository. Add required
+   reviewers if releases require a human gate.
+2. In PyPI, create a pending trusted publisher with the GitHub owner,
+   repository, workflow filename `.github/workflows/release.yml`, and the
+   `pypi` environment name. Do not create or store a PyPI API token.
+3. Confirm the merged revision is green on every supported Python version and
+   build distributions locally with `python -m pip install build` followed by
+   `python -m build`.
+4. Create and push a reviewed tag such as `v0.1.0`. The Release workflow is the
+   only publisher; it builds, tests, and publishes the tag artifact.
+5. Confirm the project page and install the published distribution in a fresh
+   virtual environment before announcing it.
+
+If trusted publishing rejects a tag, do not retry by adding a long-lived token.
+First compare the PyPI publisher settings to the repository, workflow path,
+and environment named above.
