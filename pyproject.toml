@@ -34,7 +34,7 @@ bigquery = [
 ]
 dbt-bigquery = [
   "dbt-core>=1.10,<1.12",
-  "dbt-bigquery>=1.10,<1.12",
+  "dbt-bigquery>=1.10,<1.13",
 ]
 dev = [
   "pytest>=8,<9",
@@ -47,7 +47,7 @@ all = [
   "google-cloud-bigquery>=3.25,<4",
   "sqlglot>=26,<29",
   "dbt-core>=1.10,<1.12",
-  "dbt-bigquery>=1.10,<1.12",
+  "dbt-bigquery>=1.10,<1.13",
 ]
 
 [project.scripts]
