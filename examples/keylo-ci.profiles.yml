@@ -1,0 +1,13 @@
+keylo_dbt:
+  target: ci
+  outputs:
+    ci:
+      type: bigquery
+      method: oauth
+      project: "{{ env_var('DBT_GCP_PROJECT_ID', 'verdant-abacus-481415-d2') }}"
+      dataset: "{{ env_var('DBT_TARGET_DATASET', 'keylo_dbt_ci') }}"
+      location: "{{ env_var('DBT_BIGQUERY_LOCATION', 'US') }}"
+      priority: interactive
+      threads: 4
+      job_execution_timeout_seconds: 300
+      job_retries: 1

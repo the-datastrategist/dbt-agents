@@ -75,6 +75,54 @@ dbt-agents validate keylo --selector my_model+ --target ci \
 Production remains a separate A3 operation. This workflow does not push, open a
 pull request, or execute a production target.
 
+## Local impersonation
+
+For Keylo, use ADC only as the source credential and impersonate the two
+identities created by `iam-apply`. This avoids local service-account keys:
+
+```bash
+export DBT_AGENTS_QUERY_SERVICE_ACCOUNT=keylo-dbt-query@verdant-abacus-481415-d2.iam.gserviceaccount.com
+export DBT_AGENTS_DBT_SERVICE_ACCOUNT=keylo-dbt-runner@verdant-abacus-481415-d2.iam.gserviceaccount.com
+export DBT_AGENTS_DBT_IMPERSONATE_SERVICE_ACCOUNT="$DBT_AGENTS_DBT_SERVICE_ACCOUNT"
+```
+
+Set `warehouse.auth.mode: impersonation` in your local configuration, retain
+the two `*_service_account_env` names from the Keylo example, and add this to
+each dbt target in the local `profiles.yml`:
+
+```yaml
+impersonate_service_account: "{{ env_var('DBT_AGENTS_DBT_IMPERSONATE_SERVICE_ACCOUNT') }}"
+```
+
+The local ADC principal needs `roles/iam.serviceAccountTokenCreator` on each
+service account. This is an identity-impersonation grant only; it does not add
+any direct BigQuery data role to the user. Re-run `dbt-agents doctor keylo
+--live` after switching modes.
+
+## GitHub Actions dbt validation
+
+The reusable workflow
+`.github/workflows/keylo-dbt-validation.yml` is designed to be called from the
+`the-datastrategist/keylo-dbt` repository. It reuses that repository's existing
+GitHub OIDC provider, authenticates only as `keylo-dbt-runner`, and restricts
+dbt writes to `keylo_dbt_ci`. Call it only from a protected branch or an
+environment requiring review.
+
+Caller example:
+
+```yaml
+jobs:
+  dbt-agents:
+    uses: the-datastrategist/dbt-agents/.github/workflows/keylo-dbt-validation.yml@<immutable-commit-sha>
+    with:
+      dbt_agents_ref: <same-immutable-commit-sha>
+      selector: dbt_project_smoke_test
+```
+
+The CI configuration and dbt profile templates are in
+`examples/keylo-ci.dbt-agents.yml` and `examples/keylo-ci.profiles.yml`. The
+workflow uses GitHub OIDC and never stores a Google service-account key.
+
 ## Release
 
 The release workflow builds and tests tagged revisions, then uses PyPI trusted
