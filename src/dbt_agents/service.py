@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import time
 from collections.abc import Callable
 from datetime import timedelta
@@ -24,6 +25,7 @@ class ProjectRuntime:
         self.name = name
         self.config = config
         self.policy = PolicyEngine(config)
+        self._assert_distinct_runtime_identities()
         self.repo = RepositoryAdapter(config)
         self.dbt = DbtAdapter(config)
         if config.warehouse.provider != "bigquery":
@@ -34,6 +36,30 @@ class ProjectRuntime:
         self.warehouse = BigQueryProvider(config)
         self.audit = AuditLogger(config.resolved_audit_dir)
         self.plans = PlanStore(config.resolved_audit_dir, DbtAgentsService.PLAN_TTL)
+
+    def _assert_distinct_runtime_identities(self) -> None:
+        auth = self.config.warehouse.auth
+        if auth.mode == "service_account_file":
+            query_file = os.getenv(auth.query_credentials_file_env)
+            dbt_file = os.getenv(auth.dbt_credentials_file_env)
+            same_file = (
+                query_file
+                and dbt_file
+                and os.path.realpath(query_file) == os.path.realpath(dbt_file)
+            )
+            if same_file:
+                raise PolicyDenied("query and dbt identities must use different credential files")
+        if auth.mode == "impersonation":
+            query_account = (
+                os.getenv(auth.query_service_account_env)
+                if auth.query_service_account_env
+                else None
+            )
+            dbt_account = (
+                os.getenv(auth.dbt_service_account_env) if auth.dbt_service_account_env else None
+            )
+            if query_account and dbt_account and query_account == dbt_account:
+                raise PolicyDenied("query and dbt identities must use different service accounts")
 
 
 class DbtAgentsService:

@@ -21,11 +21,22 @@ class AuthConfig(StrictModel):
     query_credentials_file_env: str = "DBT_AGENTS_QUERY_CREDENTIALS"
     dbt_credentials_file_env: str = "DBT_AGENTS_DBT_CREDENTIALS"
 
+    @model_validator(mode="after")
+    def identity_environment_names_are_distinct(self) -> AuthConfig:
+        if (
+            self.query_service_account_env
+            and self.query_service_account_env == self.dbt_service_account_env
+        ):
+            raise ValueError("query and dbt service-account environment names must differ")
+        if self.query_credentials_file_env == self.dbt_credentials_file_env:
+            raise ValueError("query and dbt credential-file environment names must differ")
+        return self
+
 
 class WarehouseLimits(StrictModel):
     query_max_bytes_billed: int = Field(default=1_000_000_000, gt=0)
     query_timeout_seconds: int = Field(default=60, ge=1, le=3600)
-    query_max_rows: int = Field(default=1000, ge=1, le=100_000)
+    query_max_rows: int = Field(default=100, ge=1, le=100_000)
     query_max_result_bytes: int = Field(default=2_000_000, ge=1024)
     query_max_cell_chars: int = Field(default=10_000, ge=32)
     dbt_timeout_seconds: int = Field(default=900, ge=1, le=86_400)
@@ -34,7 +45,7 @@ class WarehouseLimits(StrictModel):
 
 
 class WarehouseConfig(StrictModel):
-    provider: str = "bigquery"
+    provider: Literal["bigquery"] = "bigquery"
     project: str
     location: str = "US"
     default_dataset: str | None = None

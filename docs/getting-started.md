@@ -12,6 +12,11 @@ cp examples/keylo.dbt-agents.yml dbt-agents.yml
 Keep `dbt-agents.yml` local when it contains machine-specific paths. It must
 never contain credential material.
 
+Configuration `version: 1` uses a 1 GB per-query ceiling, 60-second query
+timeout, and 100 returned rows by default. Raw physical-table rows are disabled
+unless a project explicitly sets `warehouse.allow_raw_rows: true`; aggregate
+diagnostics remain available. See the [v1 contract](contracts/v1.md).
+
 ## Authentication
 
 For a quick local setup, authenticate application-default credentials:

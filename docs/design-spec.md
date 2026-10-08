@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Status | Proposed |
-| Version | 0.1 |
-| Date | 2026-10-06 |
+| Status | Accepted; v1 contract frozen by ADR-0001 |
+| Version | 1.0 |
+| Date | 2026-10-07 |
 | Initial consumer | Keylo dbt project |
 | Initial warehouse | BigQuery |
 | Primary interfaces | MCP and CLI |
@@ -161,8 +161,8 @@ policy engine and IAM. Configuration must never contain credential contents.
 | Level | Examples | Default behavior |
 |---|---|---|
 | A0: inspect | Read files, search, `git diff`, list metadata, dbt parse artifacts | Run without confirmation. |
-| A1: bounded compute | BigQuery dry run/read query, `dbt compile`, `dbt test` | Run without confirmation within cost and row limits; otherwise ask. |
-| A2: reversible local change | Edit allowlisted files, create branch, run dev/CI dbt models | Require confirmation of the proposed plan and targets. |
+| A1: bounded compute | BigQuery dry run/read query, `dbt compile` | Run without confirmation within cost and row limits; otherwise reject. |
+| A2: reversible local change | Edit allowlisted files, create branch, run dev/CI dbt models or tests | Require confirmation of the proposed plan and targets. |
 | A3: remote/consequential | Push, open PR, production dbt invocation | Explicit confirmation for each operation; production may also require environment approval. |
 | Forbidden | Direct DML/DDL, source writes, IAM changes, merge PR, force push | Tool does not expose or execute it. |
 
@@ -638,25 +638,15 @@ dbt-agents/
 | CLI-first GitHub Action | Deterministic and credential-light | Automated prose/code review needs an optional model-backed job. |
 | Provider SPI | Enables other warehouses | Safety semantics vary and require conformance tests. |
 
-## 20. Open decisions before implementation
+## 20. Frozen v1 decisions
 
-The following do not block the architecture, but should be resolved in Phase 0:
+The package/configuration names, query budget, raw-row policy, authentication
+modes, dbt-test approval, Git publishing boundary, and exact support guarantee
+are accepted in [ADR-0001](adr/0001-v1-contract-freeze.md). The normative tool
+and configuration inventory is [the v1 contract](contracts/v1.md).
 
-1. Package name: `dbt-agents`, `dbt-agent`, or another PyPI-safe name.
-2. Whether local v1 must support service-account JSON files, or only ADC and
-   impersonation. The recommendation is to support file paths for compatibility
-   but strongly warn and test against committing them.
-3. Whether `dbt test` is A1 or A2 for Keylo. It may execute hooks or persist
-   audit relations, so classification should be based on the resolved manifest
-   and project hooks rather than the command name alone.
-4. Default diagnostic budget. The illustrative 1 GB/query limit should be
-   changed to the desired cost envelope.
-5. Whether v1 may sample raw rows. The recommendation is disabled by default,
-   enabled per project/dataset with column redaction.
-6. Git publishing implementation: GitHub CLI first, or GitHub API. CLI is
-   lighter locally; API is easier to constrain precisely in hosted execution.
-7. Whether the initial deliverable modifies only this new repository or also
-   adds configuration/workflows to `keylo-dbt`.
+The remaining question about adding configuration or workflows to `keylo-dbt`
+is an integration-scope decision, not part of this public contract.
 
 ## 21. Growth triggers
 

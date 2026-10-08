@@ -44,3 +44,14 @@ ChatGPT setup. The architecture and acceptance criteria are in the
 
 The initial warehouse provider is BigQuery. Provider contracts are intentionally
 small so other adapters can implement the same safety semantics.
+
+## Compatibility
+
+The public names, safety defaults, and v1 support boundary are frozen in the
+[v1 contract](docs/contracts/v1.md) and
+[ADR-0001](docs/adr/0001-v1-contract-freeze.md). Additive changes remain
+possible; breaking configuration or MCP changes require a new contract version
+and migration guide.
+
+v1 supports Python 3.11–3.13, dbt Core 1.10–1.11, BigQuery, macOS/Linux local
+execution, and GitHub.com publishing through `git` and `gh`.

@@ -4,7 +4,7 @@ import pytest
 
 from dbt_agents.adapters.repository import RepositoryAdapter
 from dbt_agents.config import ProjectConfig
-from dbt_agents.errors import StaleWorkspace
+from dbt_agents.errors import PolicyDenied, StaleWorkspace
 
 
 def test_read_and_hash_guarded_write(project_config: ProjectConfig) -> None:
@@ -36,3 +36,8 @@ def test_git_status_does_not_mutate(project_config: ProjectConfig) -> None:
     result = RepositoryAdapter(project_config).status(include_diff=True)
     assert "branch" in result
     assert result["status"]
+
+
+def test_git_publish_rejects_uncontracted_action(project_config: ProjectConfig) -> None:
+    with pytest.raises(PolicyDenied, match="unsupported"):
+        RepositoryAdapter(project_config).publish("merge")

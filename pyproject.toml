@@ -7,9 +7,18 @@ name = "dbt-agents"
 version = "0.1.0"
 description = "Policy-enforced tools for AI-assisted dbt and warehouse work"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.11,<3.14"
 license = {text = "Apache-2.0"}
 authors = [{name = "The Data Strategist"}]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "License :: OSI Approved :: Apache Software License",
+  "Operating System :: MacOS",
+  "Operating System :: POSIX :: Linux",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+]
 dependencies = [
   "pydantic>=2.8,<3",
   "PyYAML>=6,<7",

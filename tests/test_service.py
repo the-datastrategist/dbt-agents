@@ -1,6 +1,9 @@
 from __future__ import annotations
 
-from dbt_agents.config import AppConfig
+import pytest
+
+from dbt_agents.config import AppConfig, AuthConfig
+from dbt_agents.errors import PolicyDenied
 from dbt_agents.service import DbtAgentsService
 
 
@@ -78,3 +81,31 @@ def test_plan_argument_mismatch_is_rejected(app_config: AppConfig) -> None:
     )
     assert result["ok"] is False
     assert result["error"] == "policy_denied"
+
+
+def test_dbt_test_always_requires_write_approval(app_config: AppConfig) -> None:
+    service = DbtAgentsService(app_config)
+    plan = service.change_plan("fixture", "dbt_test", {"selector": "model", "target": "dev"})
+    result = service.dbt_test(
+        "fixture",
+        "model",
+        target="dev",
+        approved=False,
+        plan_id=plan["data"]["plan_id"],
+    )
+    assert result["ok"] is False
+    assert result["error"] == "approval_required"
+    assert result["details"]["level"] == 2
+
+
+def test_runtime_rejects_same_impersonated_identity(app_config: AppConfig, monkeypatch) -> None:
+    project = app_config.projects["fixture"]
+    project.warehouse.auth = AuthConfig(
+        mode="impersonation",
+        query_service_account_env="QUERY_ACCOUNT",
+        dbt_service_account_env="DBT_ACCOUNT",
+    )
+    monkeypatch.setenv("QUERY_ACCOUNT", "same@example.iam.gserviceaccount.com")
+    monkeypatch.setenv("DBT_ACCOUNT", "same@example.iam.gserviceaccount.com")
+    with pytest.raises(PolicyDenied, match="different service accounts"):
+        DbtAgentsService(app_config).project_get("fixture")

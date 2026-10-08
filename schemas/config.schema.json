@@ -49,7 +49,7 @@
       "additionalProperties": false,
       "required": ["project", "read_datasets", "dbt_write_datasets"],
       "properties": {
-        "provider": {"type": "string", "default": "bigquery"},
+        "provider": {"const": "bigquery", "default": "bigquery"},
         "project": {"type": "string", "minLength": 1},
         "location": {"type": "string", "default": "US"},
         "default_dataset": {"type": ["string", "null"]},
@@ -65,7 +65,7 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "mode": {"enum": ["adc", "impersonation", "service_account_file", "workload_identity"]},
+        "mode": {"enum": ["adc", "impersonation", "service_account_file", "workload_identity"], "default": "adc"},
         "query_service_account_env": {"type": ["string", "null"]},
         "dbt_service_account_env": {"type": ["string", "null"]},
         "query_credentials_file_env": {"type": "string"},
@@ -76,11 +76,11 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "query_max_bytes_billed": {"type": "integer", "minimum": 1},
-        "query_timeout_seconds": {"type": "integer", "minimum": 1, "maximum": 3600},
-        "query_max_rows": {"type": "integer", "minimum": 1, "maximum": 100000},
-        "query_max_result_bytes": {"type": "integer", "minimum": 1024},
-        "query_max_cell_chars": {"type": "integer", "minimum": 32},
+        "query_max_bytes_billed": {"type": "integer", "minimum": 1, "default": 1000000000},
+        "query_timeout_seconds": {"type": "integer", "minimum": 1, "maximum": 3600, "default": 60},
+        "query_max_rows": {"type": "integer", "minimum": 1, "maximum": 100000, "default": 100},
+        "query_max_result_bytes": {"type": "integer", "minimum": 1024, "default": 2000000},
+        "query_max_cell_chars": {"type": "integer", "minimum": 32, "default": 10000},
         "dbt_timeout_seconds": {"type": "integer", "minimum": 1, "maximum": 86400},
         "file_max_bytes": {"type": "integer", "minimum": 1024},
         "search_max_matches": {"type": "integer", "minimum": 1, "maximum": 10000}
