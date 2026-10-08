@@ -233,9 +233,11 @@ class DbtAgentsService:
             operation,
             PolicyEngine.allow(ApprovalLevel.BOUNDED_COMPUTE, "BQ-READ-ONLY", "BQ-BUDGET"),
             {"sql_sha256": hashlib.sha256(sql.encode()).hexdigest(), "dry_run": dry_run_only},
-            lambda: runtime.warehouse.dry_run(sql)
-            if dry_run_only
-            else runtime.warehouse.execute_read(sql),
+            lambda: (
+                runtime.warehouse.dry_run(sql)
+                if dry_run_only
+                else runtime.warehouse.execute_read(sql)
+            ),
         )
 
     def change_plan(
