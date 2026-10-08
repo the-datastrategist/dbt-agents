@@ -26,7 +26,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-mcp = ["mcp>=1.26,<2"]
+mcp = ["mcp>=1.26,<3"]
 bigquery = [
   "google-auth>=2.30,<3",
   "google-cloud-bigquery>=3.25,<4",
@@ -42,7 +42,7 @@ dev = [
   "ruff==0.16.10",
 ]
 all = [
-  "mcp>=1.26,<2",
+  "mcp>=1.26,<3",
   "google-auth>=2.30,<3",
   "google-cloud-bigquery>=3.25,<4",
   "sqlglot>=26,<31",
