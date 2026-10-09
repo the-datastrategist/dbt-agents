@@ -68,6 +68,72 @@ or any other project-scoped operation. The tool returns sanitized aliases and
 does not load warehouse credentials or expose local paths. See the
 [project discovery specification](specs/project-discovery.md).
 
+## Onboard a new dbt repository
+
+Use the CLI-first onboarding flow before a repository is added to an active
+configuration. It does not read `.env` files or credential material, and the
+initial inspection makes no network or warehouse calls.
+
+```bash
+dbt-agents onboard inspect \
+  --repo-root /work/acme \
+  --dbt-project-dir /work/acme/dbt \
+  --output .dbt-agents/onboarding/acme/report.json
+```
+
+Review the report's unresolved `var()` and `env_var()` requirements. Supply
+only non-secret business settings in an answers file such as:
+
+```yaml
+alias: acme
+warehouse_project: acme-analytics
+read_datasets: [raw, analytics_dev, analytics_ci]
+dbt_write_datasets: [analytics_dev, analytics_ci]
+target_datasets:
+  dev: analytics_dev
+  ci: analytics_ci
+dbt_environment:
+  DBT_SOURCE_PROJECT: acme-analytics
+  DBT_SOURCE_DATASET: raw
+auth_mode: impersonation
+query_service_account_env: DBT_AGENTS_QUERY_SERVICE_ACCOUNT
+dbt_service_account_env: DBT_AGENTS_DBT_SERVICE_ACCOUNT
+```
+
+Generate and validate an inactive candidate before registration:
+
+```bash
+dbt-agents onboard propose \
+  --report .dbt-agents/onboarding/acme/report.json \
+  --answers onboarding-answers.yml \
+  --output .dbt-agents/onboarding/acme/candidate.yml
+
+dbt-agents onboard validate \
+  --candidate .dbt-agents/onboarding/acme/candidate.yml
+```
+
+Add `--compile` to run `dbt parse` and `dbt compile`; add `--with-deps` when
+the project declares packages. Add `--live` only after configuring credentials
+to run live readiness checks. Neither mode runs models, builds relations, or
+changes IAM.
+
+Registration is a two-step, hash-guarded operation. First inspect the exact
+configuration diff and its `active_config_sha256`; then approve that unchanged
+configuration explicitly:
+
+```bash
+dbt-agents onboard register --candidate .dbt-agents/onboarding/acme/candidate.yml \
+  --config dbt-agents.yml
+
+dbt-agents onboard register --candidate .dbt-agents/onboarding/acme/candidate.yml \
+  --config dbt-agents.yml --expected-sha256 '<preview hash>' --approve
+```
+
+Restart the local MCP server or tunnel after a successful registration, then
+call `project_list` from ChatGPT or Codex. See the
+[project onboarding specification](specs/project-onboarding.md) for the
+security model and implementation details.
+
 ## Codex
 
 Install the package and merge the example from

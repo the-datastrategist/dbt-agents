@@ -35,12 +35,12 @@ Project-scoped tools use the configured dbt-agents alias (for example,
 tool or `dbt-agents projects` CLI command to discover valid aliases. See the
 [project discovery specification](docs/specs/project-discovery.md).
 
-For a repository that has not yet been configured, see the proposed
+For a repository that has not yet been configured, use the initial CLI-first
 [project onboarding and readiness flow](docs/specs/project-onboarding.md).
-It describes the planned CLI-first bootstrap process: discover a dbt project's
-configuration contract, collect operator-confirmed non-secret values, validate
-from offline checks through bounded warehouse access, and only then register
-an MCP project alias.
+It discovers a dbt project's configuration contract, collects
+operator-confirmed non-secret values, validates from offline checks through
+optional bounded warehouse access, and only then registers an MCP project
+alias.
 
 Before approving dbt execution, run the offline and live readiness checks in
 [Operational readiness](docs/operations.md). The same guide covers non-mutating
