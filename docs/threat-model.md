@@ -20,18 +20,18 @@ MCP annotations improve client behavior but are not authorization.
 | Threat | Control |
 |---|---|
 | Path traversal or symlink escape | Canonical path containment, protected components, no followed search symlinks, writable globs. |
-| Credential disclosure | Pre-read protected paths, split credential environment names, result/log redaction, no environment inspection tool. |
+| Credential disclosure | Pre-read protected paths, split credential environment names, minimal dbt subprocess environments, result/log redaction, no environment inspection tool. |
 | Stale overwrite | Required SHA-256 match and atomic file replacement. |
 | Shell/argument injection | No shell execution; fixed argv builders; selector and identifier validation. |
 | Direct data mutation | Read-only SQL AST policy plus a query identity without data-write IAM. |
-| SQL parser bypass | One parsed BigQuery statement, forbidden AST/text corpus, provider dry run, IAM backstop. |
+| SQL parser bypass | One parsed BigQuery statement, forbidden AST/text corpus, output-shape restrictions for protected/raw rows, provider dry run, IAM backstop. |
 | Excessive query cost | Dry run, maximum bytes billed, timeout, row/cell/result limits, cancellation. |
 | dbt writes to source | Explicit target mapping, resolved-node database/schema preflight, dbt identity scoped to target datasets. |
 | Prompt injection in code/data | Server instructions identify outputs as untrusted; tools never derive authorization from content. |
-| Unauthorized write | Short-lived exact plan, explicit approval, accurate MCP annotation, atomic one-use consumption. |
+| Unauthorized write | Short-lived exact plan, content digest, out-of-band local approval unavailable to MCP, accurate annotation, atomic one-use consumption. |
 | Unintended remote Git action | Separate branch/commit/push/PR modes; no merge, force push, or arbitrary Git arguments. |
 | Unauthenticated local HTTP | Loopback-only binding and bearer token by default. |
-| Dependency/macro compromise | Pinned release ranges, isolated environment, reviewed checkout, CI, future dependency scanning. |
+| Dependency/macro compromise | Pinned release ranges, minimal subprocess environment, no-introspection compile, reviewed checkout, CI, future dependency scanning. |
 
 ## Residual risks
 

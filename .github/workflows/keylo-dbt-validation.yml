@@ -59,8 +59,9 @@ jobs:
           DBT_GCP_PROJECT_ID: verdant-abacus-481415-d2
           DBT_TARGET: ci
           DBT_TARGET_DATASET: keylo_dbt_ci
+          DBT_SELECTOR: ${{ inputs.selector }}
         run: |
           mkdir -p "$DBT_AGENTS_CI_PROFILES_DIR"
           cp examples/keylo-ci.profiles.yml "$DBT_AGENTS_CI_PROFILES_DIR/profiles.yml"
           dbt-agents doctor keylo --config examples/keylo-ci.dbt-agents.yml
-          dbt-agents validate keylo --selector '${{ inputs.selector }}' --target ci --with-tests --approve --config examples/keylo-ci.dbt-agents.yml
+          dbt-agents validate keylo --selector "$DBT_SELECTOR" --target ci --with-tests --approve --config examples/keylo-ci.dbt-agents.yml

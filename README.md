@@ -53,10 +53,10 @@ IAM verification, the validation ladder, and trusted release publishing.
 - SHA-guarded atomic file replacement;
 - SQL AST validation, one-statement enforcement, dry runs, byte budgets, row
   limits, and IAM read-only query credentials;
-- exact short-lived plans plus approval for writes;
+- exact short-lived plans plus out-of-band local approval for writes;
 - separate query and dbt-runner identities;
 - fixed dbt and Git command builders with no arbitrary shell tool; and
-- sanitized JSONL audit events without file bodies or query results.
+- sanitized, owner-only JSONL audit events without file bodies or query results.
 
 The initial warehouse provider is BigQuery. Provider contracts are intentionally
 small so other adapters can implement the same safety semantics.

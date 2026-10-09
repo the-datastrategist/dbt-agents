@@ -23,8 +23,8 @@ def create_server(config_path: str | Path, *, host: str = "127.0.0.1", port: int
         instructions=(
             "If the project alias is unknown, call project_list first and pass a returned id to "
             "project_get. Use read tools first. Before any write, call change_plan with the exact "
-            "arguments, "
-            "show the plan to the user, and obtain confirmation. Direct data mutation is "
+            "arguments, show the plan to the user, and ask them to approve it through the local "
+            "approve-plan CLI command. MCP cannot approve its own plan. Direct data mutation is "
             "forbidden; "
             "warehouse_query is read-only and dbt_execute is the only warehouse write path."
         ),
@@ -102,7 +102,7 @@ def create_server(config_path: str | Path, *, host: str = "127.0.0.1", port: int
 
     @server.tool(title="Create exact change plan", annotations=readonly, structured_output=True)
     def change_plan(project: str, action: str, details: dict[str, Any]) -> dict[str, Any]:
-        """Create a short-lived exact plan before calling any write tool."""
+        """Create an exact plan; a user must approve it through the local CLI before a write."""
         return service.change_plan(project, action, details)
 
     @server.tool(
@@ -116,7 +116,7 @@ def create_server(config_path: str | Path, *, host: str = "127.0.0.1", port: int
         plan_id: str,
         approved: bool = False,
     ) -> dict[str, Any]:
-        """Replace one allowlisted file after an exact change plan and explicit user approval."""
+        """Replace a file after local approval of a plan containing its content_sha256."""
         return service.repo_apply_patch(
             project, path, content, expected_sha256, approved=approved, plan_id=plan_id
         )

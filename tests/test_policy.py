@@ -60,6 +60,35 @@ def test_protected_column(project_config: ProjectConfig) -> None:
         )
 
 
+@pytest.mark.parametrize(
+    "sql",
+    [
+        "select array_agg(t) from `example-project.source.events` t",
+        "select array_agg(struct(t.*)) from `example-project.source.events` t",
+        "select count(*), any_value(t) from `example-project.source.events` t",
+        "select string_agg(cast(id as string)) from `example-project.source.events`",
+    ],
+)
+def test_raw_row_aggregates_are_rejected(project_config: ProjectConfig, sql: str) -> None:
+    config = project_config.model_copy(deep=True)
+    config.warehouse.allow_raw_rows = False
+    with pytest.raises(PolicyDenied, match="raw row"):
+        SqlPolicy(config).validate_read_query(sql)
+
+
+def test_protected_columns_reject_wildcards_and_whole_rows(
+    project_config: ProjectConfig,
+) -> None:
+    config = project_config.model_copy(deep=True)
+    config.warehouse.allow_raw_rows = True
+    config.warehouse.protected_columns = ["email"]
+    policy = SqlPolicy(config)
+    with pytest.raises(PolicyDenied, match="protected"):
+        policy.validate_read_query("select t.* from `example-project.source.events` t")
+    with pytest.raises(PolicyDenied, match="protected"):
+        policy.validate_read_query("select any_value(t) from `example-project.source.events` t")
+
+
 def test_path_escape_and_protected_file(project_config: ProjectConfig, tmp_path: Path) -> None:
     policy = FilePolicy(project_config)
     with pytest.raises(PolicyDenied, match="escapes"):

@@ -176,12 +176,17 @@ connections and recommends absolute working directories for stdio. See
 
 ## Write workflow
 
-Every write uses two calls:
+Every write uses a plan, a trusted local approval, and the matching write call:
 
 1. `change_plan(project, action, details)` returns a short-lived `plan_id`.
-2. After reviewing the plan, call the matching write tool with the same details,
-   the `plan_id`, and `approved=true`.
+2. After reviewing it, approve the exact plan outside MCP with
+   `dbt-agents approve-plan PROJECT ACTION 'DETAILS_JSON' --plan-id PLAN_ID --approve`.
+3. Call the matching write tool with the same details, the `plan_id`, and
+   `approved=true`.
 
 The service consumes a plan on the first attempt. Changed arguments, an expired
 plan, or a reused plan are rejected. Repository replacement additionally needs
-the SHA-256 returned by `repo_read`, preventing stale overwrites.
+the SHA-256 returned by `repo_read` and a `content_sha256` for the proposed UTF-8
+replacement body. This prevents stale overwrites and post-approval substitution.
+Local CLI write commands persist this approval automatically when `--approve`
+is supplied; MCP intentionally has no plan-approval tool.

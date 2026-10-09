@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+
 import pytest
 
 from dbt_agents.config import AppConfig, AuthConfig
@@ -66,14 +68,20 @@ def test_exact_plan_allows_one_guarded_edit(app_config: AppConfig) -> None:
     service = DbtAgentsService(app_config)
     read = service.repo_read("fixture", "dbt/models/model.sql")
     sha = read["data"]["sha256"]
-    details = {"path": "dbt/models/model.sql", "expected_sha256": sha}
+    content = "select 2 as id\n"
+    details = {
+        "path": "dbt/models/model.sql",
+        "expected_sha256": sha,
+        "content_sha256": hashlib.sha256(content.encode()).hexdigest(),
+    }
     plan = service.change_plan("fixture", "repo_apply_patch", details)
+    service.approve_plan(plan["data"]["plan_id"], "fixture", "repo_apply_patch", details)
     # A second process/service instance can consume the persisted plan.
     consumer = DbtAgentsService(app_config)
     result = consumer.repo_apply_patch(
         "fixture",
         "dbt/models/model.sql",
-        "select 2 as id\n",
+        content,
         sha,
         approved=True,
         plan_id=plan["data"]["plan_id"],
@@ -96,21 +104,27 @@ def test_missing_approval_does_not_consume_plan(app_config: AppConfig) -> None:
     service = DbtAgentsService(app_config)
     read = service.repo_read("fixture", "dbt/models/model.sql")
     sha = read["data"]["sha256"]
-    details = {"path": "dbt/models/model.sql", "expected_sha256": sha}
+    content = "select 2 as id\n"
+    details = {
+        "path": "dbt/models/model.sql",
+        "expected_sha256": sha,
+        "content_sha256": hashlib.sha256(content.encode()).hexdigest(),
+    }
     plan = service.change_plan("fixture", "repo_apply_patch", details)
     denied = service.repo_apply_patch(
         "fixture",
         "dbt/models/model.sql",
-        "select 2 as id\n",
+        content,
         sha,
         approved=False,
         plan_id=plan["data"]["plan_id"],
     )
     assert denied["error"] == "approval_required"
+    service.approve_plan(plan["data"]["plan_id"], "fixture", "repo_apply_patch", details)
     allowed = service.repo_apply_patch(
         "fixture",
         "dbt/models/model.sql",
-        "select 2 as id\n",
+        content,
         sha,
         approved=True,
         plan_id=plan["data"]["plan_id"],
@@ -125,6 +139,12 @@ def test_plan_argument_mismatch_is_rejected(app_config: AppConfig) -> None:
         "dbt_execute",
         {"command": "run", "selector": "model", "target": "dev", "full_refresh": False},
     )
+    service.approve_plan(
+        plan["data"]["plan_id"],
+        "fixture",
+        "dbt_execute",
+        {"command": "run", "selector": "model", "target": "dev", "full_refresh": False},
+    )
     result = service.dbt_execute(
         "fixture",
         "build",
@@ -134,6 +154,58 @@ def test_plan_argument_mismatch_is_rejected(app_config: AppConfig) -> None:
         approved=True,
         plan_id=plan["data"]["plan_id"],
     )
+    assert result["ok"] is False
+    assert result["error"] == "policy_denied"
+
+
+def test_mcp_boolean_cannot_self_approve_plan(app_config: AppConfig) -> None:
+    service = DbtAgentsService(app_config)
+    read = service.repo_read("fixture", "dbt/models/model.sql")
+    sha = read["data"]["sha256"]
+    content = "select 2 as id\n"
+    details = {
+        "path": "dbt/models/model.sql",
+        "expected_sha256": sha,
+        "content_sha256": hashlib.sha256(content.encode()).hexdigest(),
+    }
+    plan = service.change_plan("fixture", "repo_apply_patch", details)
+
+    result = service.repo_apply_patch(
+        "fixture",
+        "dbt/models/model.sql",
+        content,
+        sha,
+        approved=True,
+        plan_id=plan["data"]["plan_id"],
+    )
+
+    assert result["ok"] is False
+    assert result["error"] == "policy_denied"
+    assert "out-of-band" in result["message"]
+
+
+def test_patch_plan_is_bound_to_content(app_config: AppConfig) -> None:
+    service = DbtAgentsService(app_config)
+    read = service.repo_read("fixture", "dbt/models/model.sql")
+    sha = read["data"]["sha256"]
+    approved_content = "select 2 as id\n"
+    details = {
+        "path": "dbt/models/model.sql",
+        "expected_sha256": sha,
+        "content_sha256": hashlib.sha256(approved_content.encode()).hexdigest(),
+    }
+    plan = service.change_plan("fixture", "repo_apply_patch", details)
+    service.approve_plan(plan["data"]["plan_id"], "fixture", "repo_apply_patch", details)
+
+    result = service.repo_apply_patch(
+        "fixture",
+        "dbt/models/model.sql",
+        "select secret from source\n",
+        sha,
+        approved=True,
+        plan_id=plan["data"]["plan_id"],
+    )
+
     assert result["ok"] is False
     assert result["error"] == "policy_denied"
 

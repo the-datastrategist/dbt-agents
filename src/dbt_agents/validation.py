@@ -43,6 +43,13 @@ class ValidationWorkflow:
         steps.append({"step": "dbt_test_plan", "result": plan})
         if not plan.get("ok"):
             return _summary(steps)
+        if approved:
+            approval = self.service.approve_plan(
+                plan["data"]["plan_id"], project, "dbt_test", details
+            )
+            steps.append({"step": "dbt_test_approval", "result": approval})
+            if not approval.get("ok"):
+                return _summary(steps)
         tested = self.service.dbt_test(
             project,
             selector,

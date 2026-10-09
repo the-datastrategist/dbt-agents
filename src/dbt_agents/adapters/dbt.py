@@ -168,8 +168,11 @@ class DbtAdapter:
             argv.append("--full-refresh")
         if output_json:
             argv.extend(["--output", "json", "--quiet"])
+        if command == "compile":
+            argv.append("--no-introspect")
 
-        environment = dict(self.config.dbt.environment)
+        environment = self._base_environment()
+        environment.update(self.config.dbt.environment)
         environment.setdefault("DBT_GCP_PROJECT_ID", self.config.warehouse.project)
         if dataset:
             environment["DBT_TARGET_DATASET"] = dataset
@@ -179,23 +182,33 @@ class DbtAdapter:
             cwd=self.project_dir,
             timeout=self.config.limits.dbt_timeout_seconds,
             env=environment,
+            inherit_env=False,
         )
 
     def _auth_environment(self, command: str) -> dict[str, str]:
         auth = self.config.warehouse.auth
+        read_only_command = command in {"deps", "parse", "compile", "list"}
         if auth.mode == "service_account_file":
-            value = os.getenv(auth.dbt_credentials_file_env)
+            variable = (
+                auth.query_credentials_file_env
+                if read_only_command
+                else auth.dbt_credentials_file_env
+            )
+            value = os.getenv(variable)
             if not value:
-                raise PolicyDenied(
-                    f"{auth.dbt_credentials_file_env} is required for dbt service-account auth"
-                )
+                raise PolicyDenied(f"{variable} is required for dbt service-account auth")
             return {"GOOGLE_APPLICATION_CREDENTIALS": value}
         if auth.mode == "impersonation":
-            if not auth.dbt_service_account_env:
-                raise PolicyDenied("dbt_service_account_env is required for impersonation")
-            target = os.getenv(auth.dbt_service_account_env)
+            account_variable = (
+                auth.query_service_account_env
+                if read_only_command
+                else auth.dbt_service_account_env
+            )
+            if not account_variable:
+                raise PolicyDenied("service-account environment is required for impersonation")
+            target = os.getenv(account_variable)
             if not target:
-                raise PolicyDenied(f"{auth.dbt_service_account_env} is not set")
+                raise PolicyDenied(f"{account_variable} is not set")
             profiles_path = self.config.resolved_profiles_dir / "profiles.yml"
             try:
                 profiles_text = profiles_path.read_text(encoding="utf-8")
@@ -210,6 +223,27 @@ class DbtAdapter:
             return {variable: target}
         # dbt-bigquery obtains ADC/workload identity from the runtime.
         return {}
+
+    @staticmethod
+    def _base_environment() -> dict[str, str]:
+        """Pass only runtime settings needed to launch dbt, never arbitrary host secrets."""
+        allowed = {
+            "PATH",
+            "HOME",
+            "USER",
+            "LOGNAME",
+            "TMPDIR",
+            "TEMP",
+            "TMP",
+            "LANG",
+            "LC_ALL",
+            "SSL_CERT_FILE",
+            "SSL_CERT_DIR",
+            "GOOGLE_APPLICATION_CREDENTIALS",
+            "GOOGLE_CLOUD_PROJECT",
+            "GOOGLE_EXTERNAL_ACCOUNT_ALLOW_EXECUTABLES",
+        }
+        return {name: value for name in allowed if (value := os.getenv(name)) is not None}
 
     @staticmethod
     def _validate_selector(selector: str) -> None:
