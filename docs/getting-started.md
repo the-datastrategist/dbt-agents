@@ -46,6 +46,11 @@ GitHub Actions should use OIDC/workload identity and no downloaded key.
 
 ## CLI
 
+The argument `keylo` below is the dbt-agents project alias: the key under
+`projects` in `dbt-agents.yml`. It is not the BigQuery/GCP project ID. For
+example, alias `keylo` may target warehouse project
+`verdant-abacus-481415-d2`.
+
 ```bash
 export DBT_AGENTS_CONFIG="$PWD/dbt-agents.yml"
 dbt-agents project keylo
@@ -56,6 +61,10 @@ dbt-agents warehouse-query keylo \
   'select count(*) as rows from `verdant-abacus-481415-d2.vertex_dev.transactions`' \
   --dry-run
 ```
+
+MCP clients currently need a known alias for `project_get` and every other
+project-scoped tool. A proposed no-argument `project_list` operation will make
+aliases discoverable; see the [project discovery specification](specs/project-discovery.md).
 
 ## Codex
 

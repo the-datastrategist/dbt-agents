@@ -175,6 +175,7 @@ server-side policy is authoritative.
 
 | ID | Requirement |
 |---|---|
+| FR-100 | List configured dbt-agents project aliases without credentials or external discovery, and distinguish each alias from its warehouse project identifier. |
 | FR-101 | Discover dbt projects only below configured repository roots. |
 | FR-102 | Read/search text files while honoring ignore rules, file-size limits, binary detection, and denylisted paths. |
 | FR-103 | Inspect Git branch, status, tracked diff, and recent relevant history. |
@@ -230,6 +231,7 @@ Keep tools narrow and goal-oriented. The initial MCP surface should be:
 
 | Tool | Writes state | Approval | Purpose |
 |---|---:|---:|---|
+| `project_list` | No | A0 | Return sanitized configured project aliases for first-use discovery. Proposed as an [additive v1 capability](specs/project-discovery.md). |
 | `project_get` | No | A0 | Return sanitized project configuration and capabilities. |
 | `repo_search` | No | A0 | Search allowlisted repository text. |
 | `repo_read` | No | A0 | Read bounded file ranges. |
