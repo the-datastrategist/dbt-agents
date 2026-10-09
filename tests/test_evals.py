@@ -18,12 +18,22 @@ def test_eval_catalog_has_unique_ids_and_required_categories() -> None:
     ids = [case["id"] for case in cases]
     assert len(ids) == len(set(ids))
     assert {case["category"] for case in cases} >= {
+        "project-discovery",
         "warehouse-policy",
         "repository-safety",
         "approval",
         "dbt-boundary",
         "prompt-injection",
     }
+
+
+def test_project_discovery_eval_calls_list_before_get() -> None:
+    catalog = yaml.safe_load((ROOT / "evals/cases.yml").read_text(encoding="utf-8"))
+    case = next(case for case in catalog["cases"] if case["id"] == "discover-configured-project")
+    assert case["expected_tool_calls"] == [
+        {"tool": "project_list"},
+        {"tool": "project_get", "arguments": {"project": "keylo"}},
+    ]
 
 
 def test_sql_policy_eval_cases(project_config: ProjectConfig) -> None:

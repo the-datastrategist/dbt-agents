@@ -231,7 +231,7 @@ Keep tools narrow and goal-oriented. The initial MCP surface should be:
 
 | Tool | Writes state | Approval | Purpose |
 |---|---:|---:|---|
-| `project_list` | No | A0 | Return sanitized configured project aliases for first-use discovery. Proposed as an [additive v1 capability](specs/project-discovery.md). |
+| `project_list` | No | A0 | Return sanitized configured project aliases for first-use discovery. See the [additive v1 specification](specs/project-discovery.md). |
 | `project_get` | No | A0 | Return sanitized project configuration and capabilities. |
 | `repo_search` | No | A0 | Search allowlisted repository text. |
 | `repo_read` | No | A0 | Read bounded file ranges. |

@@ -53,6 +53,7 @@ example, alias `keylo` may target warehouse project
 
 ```bash
 export DBT_AGENTS_CONFIG="$PWD/dbt-agents.yml"
+dbt-agents projects
 dbt-agents project keylo
 dbt-agents status keylo
 dbt-agents search keylo "ref(" keylo-dbt/models
@@ -62,9 +63,10 @@ dbt-agents warehouse-query keylo \
   --dry-run
 ```
 
-MCP clients currently need a known alias for `project_get` and every other
-project-scoped tool. A proposed no-argument `project_list` operation will make
-aliases discoverable; see the [project discovery specification](specs/project-discovery.md).
+MCP clients can call the no-argument `project_list` tool before `project_get`
+or any other project-scoped operation. The tool returns sanitized aliases and
+does not load warehouse credentials or expose local paths. See the
+[project discovery specification](specs/project-discovery.md).
 
 ## Codex
 

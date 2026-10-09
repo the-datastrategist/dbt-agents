@@ -14,7 +14,14 @@ from .adapters.repository import RepositoryAdapter
 from .audit import AuditLogger
 from .config import AppConfig, ProjectConfig
 from .errors import DbtAgentsError, PolicyDenied
-from .models import ApprovalLevel, OperationResult, PolicyDecision
+from .models import (
+    ApprovalLevel,
+    ConfigurationOperationResult,
+    OperationResult,
+    PolicyDecision,
+    ProjectListData,
+    ProjectSummary,
+)
 from .plans import PlanStore
 from .policy import PolicyEngine
 from .providers.bigquery import BigQueryProvider
@@ -68,6 +75,25 @@ class DbtAgentsService:
     def __init__(self, config: AppConfig):
         self.config = config
         self._runtimes: dict[str, ProjectRuntime] = {}
+
+    def project_list(self) -> dict[str, Any]:
+        start = time.monotonic()
+        projects = [
+            ProjectSummary(
+                id=name,
+                warehouse_provider=config.warehouse.provider,
+                warehouse_project=config.warehouse.project,
+                dbt_default_target=config.dbt.default_target,
+            )
+            for name, config in sorted(self.config.projects.items())
+        ]
+        result = ConfigurationOperationResult(
+            operation="project_list",
+            policy=PolicyEngine.allow(ApprovalLevel.INSPECT, "PROJECT-LIST"),
+            duration_ms=int((time.monotonic() - start) * 1000),
+            data=ProjectListData(count=len(projects), projects=projects),
+        ).model_dump(mode="json")
+        return {"ok": True, **result}
 
     def project_get(self, project: str) -> dict[str, Any]:
         runtime = self._runtime(project)
@@ -423,7 +449,10 @@ class DbtAgentsService:
 
     def _runtime(self, project: str) -> ProjectRuntime:
         if project not in self.config.projects:
-            raise PolicyDenied("unknown project", {"project": project})
+            raise PolicyDenied(
+                "unknown project; call project_list to discover configured aliases",
+                {"project": project, "discovery_tool": "project_list"},
+            )
         if project not in self._runtimes:
             self._runtimes[project] = ProjectRuntime(project, self.config.projects[project])
         return self._runtimes[project]

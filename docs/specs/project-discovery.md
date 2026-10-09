@@ -2,10 +2,10 @@
 
 | Field | Value |
 |---|---|
-| Status | Proposed |
+| Status | Implemented |
 | Date | 2026-10-09 |
 | Target release | Additive v1 minor release |
-| Interfaces | MCP first; CLI parity as a follow-up |
+| Interfaces | MCP and CLI |
 | Safety level | A0 (read-only inspection) |
 
 ## Problem statement
@@ -142,7 +142,7 @@ or credential information is returned.
 | PD-007 | Teach the MCP server to use discovery first. | Server instructions direct agents to call `project_list` when an alias is unknown and then call `project_get` with a returned `id`. |
 | PD-008 | Cover the first-use failure in an evaluation. | Given no alias in the prompt, the expected call sequence is `project_list` followed by `project_get`; no guessed or empty project value is sent. |
 
-### P1 — fast follow
+### Implemented follow-ups
 
 | ID | Requirement | Acceptance criterion |
 |---|---|---|
@@ -167,7 +167,7 @@ or credential information is returned.
    explicit safety annotations.
 4. Update server instructions, tool-name/input-schema snapshots, and contract
    documentation as an additive v1 tool.
-5. Add CLI parity after the MCP behavior is stable.
+5. Expose the same service method as `dbt-agents projects` for CLI parity.
 
 This is permitted by the v1 compatibility rule: minor releases may add tools
 but may not remove, rename, or weaken existing ones. No configuration-schema
@@ -196,8 +196,8 @@ change is required.
 
 ## Rollout and compatibility
 
-1. Implement and test the MCP tool as an additive change.
-2. Document it in the v1 public contract only when the implementation ships.
+1. Ship the tested MCP tool and CLI command as an additive change.
+2. Record it in the v1 public contract without changing configuration schema.
 3. Restart local MCP/tunnel runtimes so clients receive the refreshed catalog.
 4. Reconnect or refresh ChatGPT's connector if its cached catalog does not show
    `project_list`.
@@ -206,17 +206,11 @@ change is required.
 No migration is required. Existing clients can continue calling `project_get`
 with a known alias.
 
-## Decisions and open questions
-
-### Decisions
+## Decisions
 
 - The first release lists configured aliases, not discoverable cloud resources.
 - The MCP operation has no input parameters.
 - The response is intentionally less detailed than `project_get`.
 - A dedicated configuration-scoped result keeps `project: null` out of existing
   project-scoped responses.
-
-### Non-blocking open question
-
-- **Engineering:** Should CLI parity ship in the same release or immediately
-  after the MCP tool? This does not block the MCP implementation.
+- CLI parity ships with the MCP tool through `dbt-agents projects`.

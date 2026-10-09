@@ -115,6 +115,14 @@ def project_get(
     _print(_service(config).project_get(project))
 
 
+@app.command("projects")
+def project_list(
+    config: Path = typer.Option(_config_option(), exists=True, dir_okay=False),
+) -> None:
+    """List configured dbt-agents project aliases without loading credentials."""
+    _print(_service(config).project_list())
+
+
 @app.command("status")
 def repo_status(
     project: str,

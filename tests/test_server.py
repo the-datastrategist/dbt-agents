@@ -13,6 +13,7 @@ def test_mcp_tools_have_explicit_safety_annotations(app_config: AppConfig, monke
     annotations = {tool.name: tool.annotations for tool in tools}
 
     assert set(annotations) == {
+        "project_list",
         "project_get",
         "repo_search",
         "repo_read",
@@ -27,6 +28,7 @@ def test_mcp_tools_have_explicit_safety_annotations(app_config: AppConfig, monke
         "dbt_execute",
         "git_publish",
     }
+    assert annotations["project_list"].readOnlyHint is True
     assert annotations["warehouse_query"].readOnlyHint is True
     assert annotations["repo_apply_patch"].readOnlyHint is False
     assert annotations["repo_apply_patch"].destructiveHint is False
@@ -39,6 +41,7 @@ def test_mcp_v1_required_inputs_are_frozen(app_config: AppConfig, monkeypatch) -
     tools = asyncio.run(create_server("unused.yml").list_tools())
     required = {tool.name: set(tool.inputSchema.get("required", [])) for tool in tools}
     assert required == {
+        "project_list": set(),
         "project_get": {"project"},
         "repo_search": {"project", "query"},
         "repo_read": {"project", "path"},
