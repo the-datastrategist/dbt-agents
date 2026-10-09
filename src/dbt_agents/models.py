@@ -38,6 +38,36 @@ class OperationResult(BaseModel):
     truncated: bool = False
 
 
+class ProjectSummary(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: str
+    warehouse_provider: str
+    warehouse_project: str
+    dbt_default_target: str
+
+
+class ProjectListData(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    count: int
+    projects: list[ProjectSummary]
+
+
+class ConfigurationOperationResult(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    operation_id: str = Field(default_factory=lambda: str(uuid4()))
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    project: None = None
+    operation: str
+    policy: PolicyDecision
+    duration_ms: int = 0
+    data: ProjectListData
+    warnings: list[str] = Field(default_factory=list)
+    truncated: bool = False
+
+
 class CommandResult(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

@@ -21,7 +21,9 @@ def create_server(config_path: str | Path, *, host: str = "127.0.0.1", port: int
     server = FastMCP(
         "dbt-agents",
         instructions=(
-            "Use read tools first. Before any write, call change_plan with the exact arguments, "
+            "If the project alias is unknown, call project_list first and pass a returned id to "
+            "project_get. Use read tools first. Before any write, call change_plan with the exact "
+            "arguments, "
             "show the plan to the user, and obtain confirmation. Direct data mutation is "
             "forbidden; "
             "warehouse_query is read-only and dbt_execute is the only warehouse write path."
@@ -39,6 +41,11 @@ def create_server(config_path: str | Path, *, host: str = "127.0.0.1", port: int
     warehouse_write = ToolAnnotations(
         readOnlyHint=False, destructiveHint=True, idempotentHint=False, openWorldHint=False
     )
+
+    @server.tool(title="List configured dbt projects", annotations=readonly, structured_output=True)
+    def project_list() -> dict[str, Any]:
+        """Discover project aliases, then pass a returned id to project-scoped tools."""
+        return service.project_list()
 
     @server.tool(title="Get configured dbt project", annotations=readonly, structured_output=True)
     def project_get(project: str) -> dict[str, Any]:

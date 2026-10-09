@@ -112,7 +112,8 @@ The v1 compatibility target is:
 - GitHub.com publishing through `git` and `gh`;
 - GitHub Actions with workload identity;
 - configuration contract `version: 1`; and
-- the 13 MCP tools listed in `docs/contracts/v1.md`.
+- the original 13 MCP tools listed when this decision was accepted, plus
+  backward-compatible additive tools recorded in `docs/contracts/v1.md`.
 
 v1 does not guarantee Windows, dbt Cloud, other warehouses, hosted
 multi-tenancy, public MCP hosting, unattended production execution, arbitrary
@@ -151,4 +152,3 @@ and makes breaking changes reviewable. Accepted.
 - [x] Add snapshot tests for MCP tool names and policy defaults.
 - [x] Test all supported Python versions in CI.
 - [ ] Publish a migration guide only when a v2 change is proposed.
-

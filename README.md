@@ -30,6 +30,18 @@ See [Getting started](docs/getting-started.md) for authentication, Codex, and
 ChatGPT setup. The architecture and acceptance criteria are in the
 [design specification](docs/design-spec.md).
 
+Project-scoped tools use the configured dbt-agents alias (for example,
+`keylo`), not the warehouse project ID. Use the read-only `project_list` MCP
+tool or `dbt-agents projects` CLI command to discover valid aliases. See the
+[project discovery specification](docs/specs/project-discovery.md).
+
+For a repository that has not yet been configured, see the proposed
+[project onboarding and readiness flow](docs/specs/project-onboarding.md).
+It describes the planned CLI-first bootstrap process: discover a dbt project's
+configuration contract, collect operator-confirmed non-secret values, validate
+from offline checks through bounded warehouse access, and only then register
+an MCP project alias.
+
 Before approving dbt execution, run the offline and live readiness checks in
 [Operational readiness](docs/operations.md). The same guide covers non-mutating
 IAM verification, the validation ladder, and trusted release publishing.
