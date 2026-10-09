@@ -90,6 +90,30 @@ class SqlPolicy:
     )
     _qualified_routine = re.compile(r"(?i)\b`?[\w-]+`?\s*\.\s*`?[\w-]+`?\s*\.\s*`?[\w-]+`?\s*\(")
     _external_function = re.compile(r"(?i)\b(?:EXTERNAL_QUERY|AI\.[A-Z_]+)\s*\(")
+    _safe_aggregate_names = {
+        "APPROX_COUNT_DISTINCT",
+        "AVG",
+        "BIT_AND",
+        "BIT_OR",
+        "BIT_XOR",
+        "CORR",
+        "COUNT",
+        "COUNT_IF",
+        "COUNTIF",
+        "COVAR_POP",
+        "COVAR_SAMP",
+        "LOGICAL_AND",
+        "LOGICAL_OR",
+        "MAX",
+        "MIN",
+        "STDDEV",
+        "STDDEV_POP",
+        "STDDEV_SAMP",
+        "SUM",
+        "VARIANCE",
+        "VAR_POP",
+        "VAR_SAMP",
+    }
 
     def __init__(self, config: ProjectConfig):
         self.config = config
@@ -151,11 +175,24 @@ class SqlPolicy:
 
         ctes = {cte.alias_or_name.casefold() for cte in statement.find_all(exp.CTE)}
         protected = {column.casefold() for column in self.warehouse.protected_columns}
+        relation_aliases = {
+            table.alias_or_name.casefold()
+            for table in statement.find_all(exp.Table)
+            if table.alias_or_name
+        }
+        whole_row_references = {
+            column.name.casefold()
+            for column in statement.find_all(exp.Column)
+            if column.name and not column.table and column.name.casefold() in relation_aliases
+        }
+        unsafe_stars = [
+            star for star in statement.find_all(exp.Star) if not isinstance(star.parent, exp.Count)
+        ]
         selected_columns = {
             column.name.casefold() for column in statement.find_all(exp.Column) if column.name
         }
         exposed = protected & selected_columns
-        if exposed:
+        if exposed or (protected and (unsafe_stars or whole_row_references)):
             raise PolicyDenied("query references protected columns", {"columns": sorted(exposed)})
         relations: list[dict[str, str]] = []
         for table in statement.find_all(exp.Table):
@@ -178,11 +215,26 @@ class SqlPolicy:
                 )
             relations.append({"project": project, "dataset": dataset, "table": name})
         if relations and not self.warehouse.allow_raw_rows:
-            has_aggregate = any(statement.find_all(exp.AggFunc))
-            if not has_aggregate:
+            aggregates = list(statement.find_all(exp.AggFunc))
+            if not aggregates:
                 raise PolicyDenied(
                     "raw row queries are disabled; use aggregate diagnostics "
                     "or enable allow_raw_rows"
+                )
+            unsafe_aggregates = sorted(
+                {
+                    aggregate.sql_name()
+                    for aggregate in aggregates
+                    if aggregate.sql_name() not in self._safe_aggregate_names
+                }
+            )
+            if unsafe_stars or whole_row_references or unsafe_aggregates:
+                raise PolicyDenied(
+                    "query can preserve raw row values despite aggregation",
+                    {
+                        "aggregates": unsafe_aggregates,
+                        "whole_row_references": sorted(whole_row_references),
+                    },
                 )
         return {"statement_type": type(statement).__name__, "relations": relations}
 

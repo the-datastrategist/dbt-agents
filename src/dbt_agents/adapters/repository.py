@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import os
-import re
 import tempfile
+import time
 from pathlib import Path
 from typing import Any
+
+import regex as safe_regex
 
 from ..config import ProjectConfig
 from ..errors import ExecutionFailed, PolicyDenied, StaleWorkspace
@@ -26,6 +28,8 @@ _SKIP_DIRS = {
     ".ruff_cache",
     ".dbt-agents",
 }
+_SEARCH_TIMEOUT_SECONDS = 5.0
+_REGEX_LINE_TIMEOUT_SECONDS = 0.05
 
 
 class RepositoryAdapter:
@@ -65,12 +69,13 @@ class RepositoryAdapter:
         if not search_root.is_dir():
             raise PolicyDenied("search path must be a directory", {"path": path})
         try:
-            pattern = re.compile(query if regex else re.escape(query))
-        except re.error as exc:
+            pattern = safe_regex.compile(query if regex else safe_regex.escape(query))
+        except safe_regex.error as exc:
             raise PolicyDenied("invalid search regular expression", {"reason": str(exc)}) from exc
 
         matches: list[dict[str, Any]] = []
         scanned = 0
+        deadline = time.monotonic() + _SEARCH_TIMEOUT_SECONDS
         for directory, dirnames, filenames in os.walk(search_root, followlinks=False):
             dirnames[:] = [
                 name
@@ -78,6 +83,8 @@ class RepositoryAdapter:
                 if name not in _SKIP_DIRS and self.files.filter_search_path(Path(directory) / name)
             ]
             for name in filenames:
+                if time.monotonic() >= deadline:
+                    raise PolicyDenied("repository search exceeded total time limit")
                 candidate = Path(directory) / name
                 if not self.files.filter_search_path(candidate):
                     continue
@@ -92,7 +99,13 @@ class RepositoryAdapter:
                     continue
                 scanned += 1
                 for line_number, line in enumerate(text.splitlines(), 1):
-                    if pattern.search(line):
+                    if time.monotonic() >= deadline:
+                        raise PolicyDenied("repository search exceeded total time limit")
+                    try:
+                        matched = pattern.search(line, timeout=_REGEX_LINE_TIMEOUT_SECONDS)
+                    except TimeoutError as exc:
+                        raise PolicyDenied("search regular expression exceeded time limit") from exc
+                    if matched:
                         matches.append(
                             {
                                 "path": candidate.relative_to(self.root).as_posix(),
@@ -179,7 +192,7 @@ class RepositoryAdapter:
         base: str = "main",
     ) -> dict[str, Any]:
         if action == "branch":
-            if not branch or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._/-]{0,99}", branch):
+            if not branch or not safe_regex.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._/-]{0,99}", branch):
                 raise PolicyDenied("invalid branch name")
             argv = ["git", "switch", "-c", branch]
         elif action == "commit":

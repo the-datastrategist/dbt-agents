@@ -41,3 +41,19 @@ def test_git_status_does_not_mutate(project_config: ProjectConfig) -> None:
 def test_git_publish_rejects_uncontracted_action(project_config: ProjectConfig) -> None:
     with pytest.raises(PolicyDenied, match="unsupported"):
         RepositoryAdapter(project_config).publish("merge")
+
+
+def test_regex_search_has_per_line_timeout(project_config: ProjectConfig) -> None:
+    candidate = project_config.repo_root / "dbt" / "models" / "adversarial.txt"
+    candidate.write_text("a" * 19_000 + "!\n", encoding="utf-8")
+
+    with pytest.raises(PolicyDenied, match="time limit"):
+        RepositoryAdapter(project_config).search(r"(a+)+$", regex=True)
+
+
+def test_repository_search_has_total_timeout(project_config: ProjectConfig, monkeypatch) -> None:
+    ticks = iter([0.0, 6.0])
+    monkeypatch.setattr("dbt_agents.adapters.repository.time.monotonic", lambda: next(ticks))
+
+    with pytest.raises(PolicyDenied, match="total time limit"):
+        RepositoryAdapter(project_config).search("select")

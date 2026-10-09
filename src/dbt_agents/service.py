@@ -147,7 +147,11 @@ class DbtAgentsService:
             runtime,
             "repo_search",
             PolicyEngine.allow(ApprovalLevel.INSPECT, "FS-SEARCH"),
-            {"query": query, "path": path, "regex": regex},
+            {
+                "query_sha256": hashlib.sha256(query.encode()).hexdigest(),
+                "path": path,
+                "regex": regex,
+            },
             lambda: runtime.repo.search(query, path, regex=regex),
         )
 
@@ -306,14 +310,20 @@ class DbtAgentsService:
             runtime,
             "change_plan",
             PolicyEngine.allow(ApprovalLevel.INSPECT, "PLAN-CREATE"),
-            {"action": action, "details": normalized},
+            {
+                "action": action,
+                "details_sha256": hashlib.sha256(
+                    json.dumps(normalized, sort_keys=True).encode()
+                ).hexdigest(),
+            },
             lambda: {
                 "plan_id": record["plan_id"],
                 "action": action,
                 "details": normalized,
                 "expires_at": record["expires_at"],
                 "next_step": (
-                    "Review the exact plan, then call the matching write tool with approved=true."
+                    "Review the exact plan, approve it with the local approve-plan command, "
+                    "then call the matching write tool with approved=true."
                 ),
             },
         )
@@ -329,7 +339,11 @@ class DbtAgentsService:
         plan_id: str,
     ) -> dict[str, Any]:
         runtime = self._runtime(project)
-        details = {"path": path, "expected_sha256": expected_sha256}
+        details = {
+            "path": path,
+            "expected_sha256": expected_sha256,
+            "content_sha256": hashlib.sha256(content.encode("utf-8")).hexdigest(),
+        }
         try:
             decision = PolicyEngine.require_approval(
                 approved,
@@ -389,7 +403,17 @@ class DbtAgentsService:
             runtime,
             "git_publish",
             decision,
-            details,
+            {
+                "action": action,
+                "branch": branch,
+                "paths": paths,
+                "base": base,
+                "message_sha256": (
+                    hashlib.sha256(message.encode()).hexdigest() if message else None
+                ),
+                "title_sha256": hashlib.sha256(title.encode()).hexdigest() if title else None,
+                "body_sha256": hashlib.sha256(body.encode()).hexdigest() if body else None,
+            },
             lambda: runtime.repo.publish(
                 action,
                 branch=branch,
@@ -459,6 +483,31 @@ class DbtAgentsService:
     ) -> None:
         normalized = json.loads(json.dumps(details, sort_keys=True, default=str))
         self._runtime(project).plans.consume(plan_id, project, action, normalized)
+
+    def approve_plan(
+        self, plan_id: str, project: str, action: str, details: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Approve an exact plan from a trusted local CLI path, never through MCP."""
+        normalized = json.loads(json.dumps(details, sort_keys=True, default=str))
+        runtime = self._runtime(project)
+
+        def approve() -> dict[str, Any]:
+            runtime.plans.approve(plan_id, project, action, normalized)
+            return {"plan_id": plan_id, "action": action, "approved": True}
+
+        return self._call(
+            runtime,
+            "approve_plan",
+            PolicyEngine.allow(ApprovalLevel.LOCAL_CHANGE, "PLAN-LOCAL-APPROVAL"),
+            {
+                "plan_id": plan_id,
+                "action": action,
+                "details_sha256": hashlib.sha256(
+                    json.dumps(normalized, sort_keys=True).encode()
+                ).hexdigest(),
+            },
+            approve,
+        )
 
     def _runtime(self, project: str) -> ProjectRuntime:
         if project not in self.config.projects:

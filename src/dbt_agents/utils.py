@@ -38,10 +38,11 @@ def run_command(
     cwd: Path,
     timeout: int,
     env: Mapping[str, str] | None = None,
+    inherit_env: bool = True,
 ) -> CommandResult:
     if not argv or any("\x00" in arg for arg in argv):
         raise ExecutionFailed("invalid command arguments")
-    process_env = os.environ.copy()
+    process_env = os.environ.copy() if inherit_env else {}
     if env:
         process_env.update(env)
     start = time.monotonic()

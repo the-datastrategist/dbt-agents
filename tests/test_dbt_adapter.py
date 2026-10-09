@@ -47,3 +47,42 @@ def test_selector_resolution_uses_manifest_target_fields(
     nodes = adapter.resolve_selector("model", "dev")
     assert nodes[0]["database"] == "example-project"
     assert nodes[0]["schema"] == "dbt_dev"
+
+
+def test_compile_uses_minimal_environment_and_disables_introspection(
+    project_config: ProjectConfig, monkeypatch
+) -> None:
+    adapter = DbtAdapter(project_config)
+    captured = {}
+    monkeypatch.setenv("UNRELATED_HOST_SECRET", "must-not-reach-dbt")
+
+    def fake_run_command(argv, **kwargs):
+        captured["argv"] = argv
+        captured.update(kwargs)
+        return CommandResult(
+            argv=argv,
+            cwd=str(adapter.project_dir),
+            exit_code=0,
+            stdout="",
+            stderr="",
+            duration_ms=1,
+        )
+
+    monkeypatch.setattr("dbt_agents.adapters.dbt.run_command", fake_run_command)
+    adapter.run("compile")
+
+    assert "--no-introspect" in captured["argv"]
+    assert captured["inherit_env"] is False
+    assert "UNRELATED_HOST_SECRET" not in captured["env"]
+
+
+def test_read_only_dbt_commands_use_query_credentials(
+    project_config: ProjectConfig, monkeypatch
+) -> None:
+    project_config.warehouse.auth.mode = "service_account_file"
+    monkeypatch.setenv("DBT_AGENTS_QUERY_CREDENTIALS", "/query.json")
+    monkeypatch.setenv("DBT_AGENTS_DBT_CREDENTIALS", "/runner.json")
+    adapter = DbtAdapter(project_config)
+
+    assert adapter._auth_environment("compile") == {"GOOGLE_APPLICATION_CREDENTIALS": "/query.json"}
+    assert adapter._auth_environment("run") == {"GOOGLE_APPLICATION_CREDENTIALS": "/runner.json"}

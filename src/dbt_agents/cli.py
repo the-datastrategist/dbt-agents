@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -317,6 +318,27 @@ def change_plan(
     _print(_service(config).change_plan(project, action, details))
 
 
+@app.command("approve-plan")
+def approve_plan(
+    project: str,
+    action: str,
+    details_json: str = typer.Argument(help="Exact JSON object shown in the plan"),
+    plan_id: str = typer.Option(...),
+    approve: bool = typer.Option(False, "--approve"),
+    config: Path = typer.Option(_config_option(), exists=True, dir_okay=False),
+) -> None:
+    """Approve an exact persisted plan through the trusted local CLI path."""
+    if not approve:
+        raise typer.BadParameter("--approve is required to persist plan approval")
+    try:
+        details = json.loads(details_json)
+    except json.JSONDecodeError as exc:
+        raise typer.BadParameter(f"details_json is invalid: {exc}") from exc
+    if not isinstance(details, dict):
+        raise typer.BadParameter("details_json must be a JSON object")
+    _print(_service(config).approve_plan(plan_id, project, action, details))
+
+
 @app.command("apply")
 def repo_apply_patch(
     project: str,
@@ -329,8 +351,22 @@ def repo_apply_patch(
 ) -> None:
     """Apply a planned, hash-guarded file replacement."""
     content = content_file.read_text(encoding="utf-8")
+    service = _service(config)
+    if approve:
+        approval = service.approve_plan(
+            plan_id,
+            project,
+            "repo_apply_patch",
+            {
+                "path": path,
+                "expected_sha256": expected_sha256,
+                "content_sha256": hashlib.sha256(content.encode("utf-8")).hexdigest(),
+            },
+        )
+        if not approval.get("ok"):
+            _print(approval)
     _print(
-        _service(config).repo_apply_patch(
+        service.repo_apply_patch(
             project,
             path,
             content,
@@ -351,8 +387,15 @@ def dbt_test(
     config: Path = typer.Option(_config_option(), exists=True, dir_okay=False),
 ) -> None:
     """Run a planned and approved dbt test selection."""
+    service = _service(config)
+    if approve:
+        approval = service.approve_plan(
+            plan_id, project, "dbt_test", {"selector": selector, "target": target}
+        )
+        if not approval.get("ok"):
+            _print(approval)
     _print(
-        _service(config).dbt_test(
+        service.dbt_test(
             project,
             selector,
             target=target,
@@ -374,8 +417,19 @@ def dbt_execute(
     config: Path = typer.Option(_config_option(), exists=True, dir_okay=False),
 ) -> None:
     """Run a planned and approved dbt run/build selection."""
+    service = _service(config)
+    details = {
+        "command": command,
+        "selector": selector,
+        "target": target,
+        "full_refresh": full_refresh,
+    }
+    if approve:
+        approval = service.approve_plan(plan_id, project, "dbt_execute", details)
+        if not approval.get("ok"):
+            _print(approval)
     _print(
-        _service(config).dbt_execute(
+        service.dbt_execute(
             project,
             command,
             selector,
@@ -402,8 +456,22 @@ def git_publish(
     config: Path = typer.Option(_config_option(), exists=True, dir_okay=False),
 ) -> None:
     """Perform one planned branch, commit, push, or pull-request action."""
+    service = _service(config)
+    details = {
+        "action": action,
+        "branch": branch,
+        "message": message,
+        "paths": path,
+        "title": title,
+        "body": body,
+        "base": base,
+    }
+    if approve:
+        approval = service.approve_plan(plan_id, project, "git_publish", details)
+        if not approval.get("ok"):
+            _print(approval)
     _print(
-        _service(config).git_publish(
+        service.git_publish(
             project,
             action,
             approved=approve,

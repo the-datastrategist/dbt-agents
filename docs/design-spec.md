@@ -161,7 +161,7 @@ policy engine and IAM. Configuration must never contain credential contents.
 | Level | Examples | Default behavior |
 |---|---|---|
 | A0: inspect | Read files, search, `git diff`, list metadata, dbt parse artifacts | Run without confirmation. |
-| A1: bounded compute | BigQuery dry run/read query, `dbt compile` | Run without confirmation within cost and row limits; otherwise reject. |
+| A1: bounded compute | BigQuery dry run/read query, `dbt compile` | Run without confirmation within cost and row limits. Compile disables introspection, receives a minimal environment, and uses the query identity when identities are split. |
 | A2: reversible local change | Edit allowlisted files, create branch, run dev/CI dbt models or tests | Require confirmation of the proposed plan and targets. |
 | A3: remote/consequential | Push, open PR, production dbt invocation | Explicit confirmation for each operation; production may also require environment approval. |
 | Forbidden | Direct DML/DDL, source writes, IAM changes, merge PR, force push | Tool does not expose or execute it. |
@@ -241,8 +241,8 @@ Keep tools narrow and goal-oriented. The initial MCP surface should be:
 | `dbt_test` | Warehouse reads and possible audit relations depending on project | A1/A2 based on resolved plan | Run targeted tests. |
 | `warehouse_describe` | No | A0 | Return metadata for an allowlisted relation. |
 | `warehouse_query` | No persistent data | A1 | Dry-run and execute one bounded read query. |
-| `change_plan` | No | A0 | Validate and return a normalized proposed plan. |
-| `repo_apply_patch` | Local files | A2 | Apply a hash-guarded patch inside allowed paths. |
+| `change_plan` | No | A0 | Validate and persist a normalized proposed plan pending trusted local approval. |
+| `repo_apply_patch` | Local files | A2 | Apply an old-hash-guarded, new-content-digest-bound patch inside allowed paths. |
 | `dbt_execute` | dbt target relations | A2/A3 | Run/build selected dbt nodes using dbt-runner identity. |
 | `change_validate` | May use dev/CI dbt target | A1/A2 | Run the configured validation ladder. |
 | `git_publish` | Git/local or remote | A2/A3 | Branch, commit, push, or PR as explicit separate modes. |
