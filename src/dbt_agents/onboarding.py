@@ -42,6 +42,7 @@ class OnboardingReport(StrictModel):
 class OnboardingAnswers(StrictModel):
     alias: str
     warehouse_project: str
+    source_datasets: list[str]
     read_datasets: list[str]
     dbt_write_datasets: list[str]
     target_datasets: dict[str, str]
@@ -178,11 +179,13 @@ def propose_candidate(report: OnboardingReport, answers: OnboardingAnswers) -> d
             "provider": "bigquery",
             "project": answers.warehouse_project,
             "location": answers.location,
-            "read_datasets": sorted(set(answers.read_datasets) | set(answers.dbt_write_datasets)),
-            "dbt_write_datasets": sorted(set(answers.dbt_write_datasets)),
-            "forbidden_write_datasets": sorted(
-                set(answers.read_datasets) - set(answers.dbt_write_datasets)
+            "read_datasets": sorted(
+                set(answers.read_datasets)
+                | set(answers.source_datasets)
+                | set(answers.dbt_write_datasets)
             ),
+            "dbt_write_datasets": sorted(set(answers.dbt_write_datasets)),
+            "forbidden_write_datasets": sorted(set(answers.source_datasets)),
             "auth": auth,
         },
     }

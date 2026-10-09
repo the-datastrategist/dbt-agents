@@ -15,6 +15,7 @@ def test_mcp_tools_have_explicit_safety_annotations(app_config: AppConfig, monke
     assert set(annotations) == {
         "project_list",
         "project_get",
+        "project_readiness",
         "repo_search",
         "repo_read",
         "repo_status",
@@ -43,6 +44,7 @@ def test_mcp_v1_required_inputs_are_frozen(app_config: AppConfig, monkeypatch) -
     assert required == {
         "project_list": set(),
         "project_get": {"project"},
+        "project_readiness": {"project"},
         "repo_search": {"project", "query"},
         "repo_read": {"project", "path"},
         "repo_status": {"project"},
