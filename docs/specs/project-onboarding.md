@@ -134,7 +134,7 @@ From confirmed values, generate:
 
 - a minimal `projects.<alias>` block for `dbt-agents.yml`;
 - a provider scope proposal, including read datasets, dbt-write datasets, and
-  explicit forbidden source datasets;
+  operator-confirmed source datasets as explicit forbidden-write datasets;
 - a `.env.example` or README snippet containing variable *names* and safe
   example values only;
 - a GitHub Actions environment-variable and workload-identity checklist; and
@@ -271,10 +271,10 @@ a complete dbt-agents project block.
 4. Generate GitHub Actions snippets that use workload identity and run a clean
    `dbt compile --target ci`.
 
-The CLI now validates candidate configuration, dbt availability, profile
-presence, optional `dbt deps`/`parse`/`compile`, and optional existing live
-provider readiness. A dedicated typed static-provider check and an onboarding
-specific BigQuery `SELECT 1` result remain follow-up work.
+The CLI now validates candidate configuration, the static variable/environment
+contract, dbt availability, profile presence, optional `dbt deps`/`parse`/
+`compile`, and optional existing live provider readiness. A dedicated typed
+onboarding-specific BigQuery `SELECT 1` result remains follow-up work.
 
 **Exit criterion:** the readiness report distinguishes missing configuration
 from unavailable credentials, denied IAM, dbt compilation errors, and live
@@ -293,9 +293,10 @@ warehouse failures.
 4. Add release notes and migration guidance; all new fields and tools remain
    additive under the v1 contract.
 
-The MCP catalog already directs unknown aliases through `project_list`. Exposing
-onboarding findings through `project_get` and adding the listed agent
-evaluations remain follow-up work.
+The MCP catalog directs unknown aliases through `project_list` and exposes the
+read-only `project_readiness` tool for a registered project's static contract.
+The evaluation catalog covers missing vars/profiles, source-target overlap,
+production rejection, and second-project registration.
 
 **Exit criterion:** a ChatGPT or Codex user can understand a failed readiness
 check and receive a proposed, approval-gated fix rather than an opaque dbt

@@ -53,6 +53,15 @@ def test_unknown_project_recommends_discovery(app_config: AppConfig) -> None:
     }
 
 
+def test_project_readiness_reports_static_contract(app_config: AppConfig) -> None:
+    result = DbtAgentsService(app_config).project_readiness("fixture")
+
+    assert result["ok"] is True
+    assert result["operation"] == "project_readiness"
+    assert result["policy"]["rule_ids"] == ["PROJECT-READINESS"]
+    assert result["data"]["repository"]["root"]
+
+
 def test_exact_plan_allows_one_guarded_edit(app_config: AppConfig) -> None:
     service = DbtAgentsService(app_config)
     read = service.repo_read("fixture", "dbt/models/model.sql")

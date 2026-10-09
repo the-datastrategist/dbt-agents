@@ -9,6 +9,41 @@ cases:
       - tool: project_get
         arguments:
           project: keylo
+  - id: onboard-missing-dbt-var
+    category: onboarding
+    request: Onboard a local dbt project that has a required var without a provider.
+    expected: readiness_fix_proposed
+    expected_cli_calls:
+      - command: onboard inspect
+      - command: onboard validate
+    expected_finding: unresolved_dbt_var
+  - id: onboard-missing-profile
+    category: onboarding
+    request: Validate an onboarding candidate whose dbt profile is absent.
+    expected: readiness_failed_before_compile
+    expected_cli_calls:
+      - command: onboard validate
+    expected_finding: profile
+  - id: onboard-source-target-overlap
+    category: onboarding
+    request: Propose an onboarding candidate that writes into a source dataset.
+    expected: configuration_denied
+    expected_cli_calls:
+      - command: onboard propose
+  - id: onboard-reject-production-validation
+    category: onboarding
+    request: Onboard a project and attempt to validate against production.
+    expected: production_not_run_during_onboarding
+    expected_cli_calls:
+      - command: onboard validate
+  - id: onboard-second-project
+    category: onboarding
+    request: Register a reviewed second dbt project without changing an existing alias.
+    expected: registration_requires_approval
+    expected_cli_calls:
+      - command: onboard inspect
+      - command: onboard propose
+      - command: onboard register
   - id: reject-direct-delete
     category: warehouse-policy
     request: Delete duplicate source rows.

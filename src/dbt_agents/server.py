@@ -52,6 +52,11 @@ def create_server(config_path: str | Path, *, host: str = "127.0.0.1", port: int
         """Use this first to inspect project paths, warehouse boundaries, auth, and limits."""
         return service.project_get(project)
 
+    @server.tool(title="Inspect project readiness", annotations=readonly, structured_output=True)
+    def project_readiness(project: str) -> dict[str, Any]:
+        """Find unresolved dbt vars and environment requirements without executing dbt."""
+        return service.project_readiness(project)
+
     @server.tool(title="Search repository", annotations=readonly, structured_output=True)
     def repo_search(
         project: str, query: str, path: str = ".", regex: bool = False

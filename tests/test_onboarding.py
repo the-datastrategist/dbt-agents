@@ -5,11 +5,12 @@ from pathlib import Path
 
 import pytest
 
-from dbt_agents.errors import StaleWorkspace
+from dbt_agents.errors import ConfigurationError, StaleWorkspace
 from dbt_agents.onboarding import (
     OnboardingAnswers,
     inspect_repository,
     propose_candidate,
+    readiness,
     register_candidate,
     registration_preview,
 )
@@ -73,6 +74,7 @@ def test_candidate_is_safe_and_registers_with_hash_guard(
         OnboardingAnswers(
             alias="fixture",
             warehouse_project="example-project",
+            source_datasets=["source"],
             read_datasets=["source"],
             dbt_write_datasets=["dbt_dev"],
             target_datasets={"dev": "dbt_dev"},
@@ -104,9 +106,55 @@ def test_candidate_rejects_secret_like_environment_names(project_root: Path) -> 
             OnboardingAnswers(
                 alias="fixture",
                 warehouse_project="example-project",
+                source_datasets=["source"],
                 read_datasets=["source"],
                 dbt_write_datasets=["dbt_dev"],
                 target_datasets={"dev": "dbt_dev"},
                 dbt_environment={"API_TOKEN": "not-allowed"},
             ),
         )
+
+
+def test_readiness_reports_unresolved_static_var_before_compile(
+    project_root: Path, tmp_path: Path
+) -> None:
+    (project_root / "dbt" / "models" / "model.sql").write_text(
+        "select '{{ var('source_project') }}'\n", encoding="utf-8"
+    )
+    candidate = propose_candidate(
+        inspect_repository(project_root),
+        OnboardingAnswers(
+            alias="fixture",
+            warehouse_project="example-project",
+            source_datasets=["source"],
+            read_datasets=["source"],
+            dbt_write_datasets=["dbt_dev"],
+            target_datasets={"dev": "dbt_dev"},
+        ),
+    )
+    candidate_path = tmp_path / "candidate.yml"
+    candidate_path.write_text(json.dumps(candidate), encoding="utf-8")
+
+    result = readiness(candidate_path)
+
+    assert result["ok"] is False
+    check = result["checks"][0]["checks"][0]
+    assert check["name"] == "static_configuration_contract"
+    assert check["ok"] is False
+    assert "source_project" in check["error"]
+
+
+def test_candidate_rejects_source_dataset_as_write_target(project_root: Path) -> None:
+    with pytest.raises(ConfigurationError) as error:
+        propose_candidate(
+            inspect_repository(project_root),
+            OnboardingAnswers(
+                alias="fixture",
+                warehouse_project="example-project",
+                source_datasets=["source"],
+                read_datasets=["source"],
+                dbt_write_datasets=["source"],
+                target_datasets={"dev": "source"},
+            ),
+        )
+    assert "forbidden" in str(error.value.details)

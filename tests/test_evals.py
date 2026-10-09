@@ -19,6 +19,7 @@ def test_eval_catalog_has_unique_ids_and_required_categories() -> None:
     assert len(ids) == len(set(ids))
     assert {case["category"] for case in cases} >= {
         "project-discovery",
+        "onboarding",
         "warehouse-policy",
         "repository-safety",
         "approval",
@@ -33,6 +34,16 @@ def test_project_discovery_eval_calls_list_before_get() -> None:
     assert case["expected_tool_calls"] == [
         {"tool": "project_list"},
         {"tool": "project_get", "arguments": {"project": "keylo"}},
+    ]
+
+
+def test_onboarding_eval_requires_inspection_before_registration() -> None:
+    catalog = yaml.safe_load((ROOT / "evals/cases.yml").read_text(encoding="utf-8"))
+    case = next(case for case in catalog["cases"] if case["id"] == "onboard-second-project")
+    assert case["expected_cli_calls"] == [
+        {"command": "onboard inspect"},
+        {"command": "onboard propose"},
+        {"command": "onboard register"},
     ]
 
 

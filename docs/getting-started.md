@@ -68,6 +68,14 @@ or any other project-scoped operation. The tool returns sanitized aliases and
 does not load warehouse credentials or expose local paths. See the
 [project discovery specification](specs/project-discovery.md).
 
+After selecting an alias, run `project-readiness` (or the MCP
+`project_readiness` tool) before compile or dbt execution to identify unresolved
+`var()` and environment requirements without running dbt:
+
+```bash
+dbt-agents project-readiness keylo --config dbt-agents.yml
+```
+
 ## Onboard a new dbt repository
 
 Use the CLI-first onboarding flow before a repository is added to an active
@@ -87,6 +95,7 @@ only non-secret business settings in an answers file such as:
 ```yaml
 alias: acme
 warehouse_project: acme-analytics
+source_datasets: [raw]
 read_datasets: [raw, analytics_dev, analytics_ci]
 dbt_write_datasets: [analytics_dev, analytics_ci]
 target_datasets:

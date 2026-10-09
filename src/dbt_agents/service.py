@@ -22,6 +22,7 @@ from .models import (
     ProjectListData,
     ProjectSummary,
 )
+from .onboarding import inspect_repository
 from .plans import PlanStore
 from .policy import PolicyEngine
 from .providers.bigquery import BigQueryProvider
@@ -112,6 +113,18 @@ class DbtAgentsService:
                 "warehouse": runtime.warehouse.capabilities(),
                 "auth_mode": runtime.config.warehouse.auth.mode,
             },
+        )
+
+    def project_readiness(self, project: str) -> dict[str, Any]:
+        runtime = self._runtime(project)
+        return self._call(
+            runtime,
+            "project_readiness",
+            PolicyEngine.allow(ApprovalLevel.INSPECT, "PROJECT-READINESS"),
+            {},
+            lambda: inspect_repository(
+                runtime.config.repo_root, runtime.config.resolved_dbt_project_dir
+            ).model_dump(mode="json"),
         )
 
     def repo_read(
