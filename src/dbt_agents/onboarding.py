@@ -360,6 +360,9 @@ def _scan_requirements(root: Path, project_vars: dict[str, Any]) -> dict[str, li
             item.status = "project_default"
         elif item.default_present:
             item.status = "call_default"
+    for item in found["environment"].values():
+        if item.default_present:
+            item.status = "fallback_available"
     return {key: [value for _, value in sorted(items.items())] for key, items in found.items()}
 
 

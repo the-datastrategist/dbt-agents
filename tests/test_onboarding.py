@@ -56,12 +56,15 @@ def test_inspection_recognizes_project_level_var_default(project_root: Path) -> 
         encoding="utf-8",
     )
     (project_root / "dbt" / "models" / "model.sql").write_text(
-        "select '{{ var('source_project') }}'\n", encoding="utf-8"
+        "select '{{ var('source_project') }}', "
+        "'{{ env_var('DBT_SOURCE_PROJECT', 'example-project') }}'\n",
+        encoding="utf-8",
     )
 
     report = inspect_repository(project_root)
 
     assert report.requirements["vars"][0].status == "project_default"
+    assert report.requirements["environment"][0].status == "fallback_available"
     assert report.findings == []
 
 

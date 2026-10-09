@@ -114,7 +114,8 @@ The onboarding report groups required inputs into three categories:
 For each `var()` candidate, the report says whether it has a project-level
 default, an observed command-line/config source, or no evident provider. For
 each `env_var()` candidate, it records only the variable name and any safe
-literal default, never its current value.
+literal default, never its current value. Environment requirements with a
+declared dbt fallback are reported as `fallback_available`, not unresolved.
 
 The report should recommend a single source of truth. For example, if source
 definitions use `DBT_SOURCE_PROJECT` but an analysis requires
