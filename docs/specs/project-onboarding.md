@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | Proposed |
+| Status | Implemented (CLI onboarding); future MCP/readiness extensions proposed |
 | Date | 2026-10-09 |
 | Target | Post-v1 additive feature |
 | Interfaces | CLI first; MCP after project registration |
@@ -50,7 +50,7 @@ conversational agent attempts a normal compile.
 - Bypass the existing configured-project model. A project becomes available to
   normal MCP tools only after an explicit registration step.
 
-## User experience
+## Implemented CLI workflow
 
 The onboarding command is deliberately separate from `project_list`:
 
@@ -67,6 +67,11 @@ network call. It returns a report for the operator or an agent to review.
 the operator explicitly asks to export them. `validate` runs progressively
 more capable checks. `register` is the only action that changes the active
 dbt-agents configuration, and requires explicit approval.
+
+`validate` supports `--compile`, `--with-deps`, and `--live` as opt-in steps.
+Registration first returns a unified diff and the active configuration hash;
+`--approve --expected-sha256 <hash>` is required to write. It refuses alias
+collisions and stale active configuration.
 
 After registration, the ordinary flow remains:
 
@@ -222,7 +227,7 @@ paths.
 
 ## Implementation plan
 
-### Phase 1 — Offline inspection and report
+### Phase 1 — Offline inspection and report — implemented
 
 1. Add an `onboarding` module with protected-path filtering and a dbt project
    inventory reader.
@@ -239,7 +244,7 @@ paths.
 `keylo_source_project` / `keylo_source_dataset` mapping without reading a
 credential, running dbt, or contacting BigQuery.
 
-### Phase 2 — Candidate generation and human confirmation
+### Phase 2 — Candidate generation and human confirmation — implemented
 
 1. Add an interactive CLI or machine-readable question set for unresolved
    business values; support non-interactive CI input through named flags or a
@@ -255,7 +260,7 @@ credential, running dbt, or contacting BigQuery.
 review the exact configuration diff, and register it without manually writing
 a complete dbt-agents project block.
 
-### Phase 3 — Readiness ladder and BigQuery integration
+### Phase 3 — Readiness ladder and BigQuery integration — partially implemented
 
 1. Implement typed readiness checks and statuses: configuration, dependency,
    dbt parse, dbt compile, authentication, authorization, and warehouse read.
@@ -266,11 +271,16 @@ a complete dbt-agents project block.
 4. Generate GitHub Actions snippets that use workload identity and run a clean
    `dbt compile --target ci`.
 
+The CLI now validates candidate configuration, dbt availability, profile
+presence, optional `dbt deps`/`parse`/`compile`, and optional existing live
+provider readiness. A dedicated typed static-provider check and an onboarding
+specific BigQuery `SELECT 1` result remain follow-up work.
+
 **Exit criterion:** the readiness report distinguishes missing configuration
 from unavailable credentials, denied IAM, dbt compilation errors, and live
 warehouse failures.
 
-### Phase 4 — MCP guidance and evaluation
+### Phase 4 — MCP guidance and evaluation — partially implemented
 
 1. Add structured onboarding findings to `project_get` for registered
    projects, without returning secrets or absolute local paths to remote
@@ -282,6 +292,10 @@ warehouse failures.
    onboarding.
 4. Add release notes and migration guidance; all new fields and tools remain
    additive under the v1 contract.
+
+The MCP catalog already directs unknown aliases through `project_list`. Exposing
+onboarding findings through `project_get` and adding the listed agent
+evaluations remain follow-up work.
 
 **Exit criterion:** a ChatGPT or Codex user can understand a failed readiness
 check and receive a proposed, approval-gated fix rather than an opaque dbt

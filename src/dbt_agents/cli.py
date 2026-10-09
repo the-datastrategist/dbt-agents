@@ -10,11 +10,24 @@ import typer
 from .config import load_config
 from .doctor import Doctor
 from .iam import BigQueryIam
+from .onboarding import (
+    inspect_repository,
+    load_answers,
+    load_report,
+    propose_candidate,
+    readiness,
+    register_candidate,
+    registration_preview,
+    write_candidate,
+    write_report,
+)
 from .server import run_server
 from .service import DbtAgentsService
 from .validation import ValidationWorkflow
 
 app = typer.Typer(no_args_is_help=True, help="Policy-enforced dbt and warehouse tools.")
+onboard_app = typer.Typer(no_args_is_help=True, help="Safely onboard an unconfigured dbt project.")
+app.add_typer(onboard_app, name="onboard")
 
 
 def _service(config: Path) -> DbtAgentsService:
@@ -29,6 +42,71 @@ def _print(result: dict[str, Any]) -> None:
 
 def _config_option() -> Path:
     return Path(os.getenv("DBT_AGENTS_CONFIG", "dbt-agents.yml"))
+
+
+def _onboarding_result(operation: str, data: dict[str, Any]) -> dict[str, Any]:
+    return {"ok": True, "operation": operation, "data": data}
+
+
+@onboard_app.command("inspect")
+def onboard_inspect(
+    repo_root: Path = typer.Option(..., exists=True, file_okay=False),
+    dbt_project_dir: Path | None = typer.Option(None, exists=True, file_okay=False),
+    output: Path | None = typer.Option(None, help="Optional JSON report destination"),
+) -> None:
+    """Inventory one local dbt repository without credentials or network access."""
+    report = inspect_repository(repo_root, dbt_project_dir)
+    if output is not None:
+        write_report(report, output)
+    _print(_onboarding_result("onboard_inspect", report.model_dump(mode="json")))
+
+
+@onboard_app.command("propose")
+def onboard_propose(
+    report: Path = typer.Option(..., exists=True, dir_okay=False),
+    answers: Path = typer.Option(..., exists=True, dir_okay=False),
+    output: Path = typer.Option(..., help="Candidate dbt-agents configuration destination"),
+) -> None:
+    """Generate an inactive candidate configuration from reviewed answers."""
+    candidate = propose_candidate(load_report(report), load_answers(answers))
+    write_candidate(candidate, output)
+    _print(
+        _onboarding_result(
+            "onboard_propose",
+            {"candidate_path": str(output), "projects": sorted(candidate["projects"])},
+        )
+    )
+
+
+@onboard_app.command("validate")
+def onboard_validate(
+    candidate: Path = typer.Option(..., exists=True, dir_okay=False),
+    compile_project: bool = typer.Option(False, "--compile", help="Run dbt parse and compile"),
+    with_deps: bool = typer.Option(False, "--with-deps", help="Run dbt deps before parse/compile"),
+    live: bool = typer.Option(False, "--live", help="Run credential and BigQuery readiness checks"),
+) -> None:
+    """Validate a candidate from local checks through optional live access."""
+    _print(readiness(candidate, compile_project=compile_project, with_deps=with_deps, live=live))
+
+
+@onboard_app.command("register")
+def onboard_register(
+    candidate: Path = typer.Option(..., exists=True, dir_okay=False),
+    config: Path = typer.Option(_config_option(), help="Active local dbt-agents configuration"),
+    expected_sha256: str | None = typer.Option(
+        None, help="Hash returned by the registration preview"
+    ),
+    approve: bool = typer.Option(False, "--approve"),
+) -> None:
+    """Preview or explicitly register a candidate without replacing existing aliases."""
+    preview = registration_preview(config, candidate)
+    public_preview = {key: value for key, value in preview.items() if key != "merged"}
+    if not approve:
+        _print(public_preview)
+        return
+    if not expected_sha256:
+        raise typer.BadParameter("--expected-sha256 from the preview is required with --approve")
+    _print(register_candidate(config, candidate, expected_sha256, approved=True))
 
 
 @app.command("check-config")
@@ -113,6 +191,15 @@ def project_get(
     config: Path = typer.Option(_config_option(), exists=True, dir_okay=False),
 ) -> None:
     _print(_service(config).project_get(project))
+
+
+@app.command("project-readiness")
+def project_readiness(
+    project: str,
+    config: Path = typer.Option(_config_option(), exists=True, dir_okay=False),
+) -> None:
+    """Inspect a configured project's static dbt configuration contract."""
+    _print(_service(config).project_readiness(project))
 
 
 @app.command("projects")
