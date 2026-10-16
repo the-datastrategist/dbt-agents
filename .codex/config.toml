@@ -1,0 +1,2 @@
+[plugins."dbt-agents@thedatastrategist-internal"]
+enabled = true

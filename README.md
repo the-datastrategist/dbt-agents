@@ -13,6 +13,19 @@ The same policy-enforced core powers:
 - a local CLI for inspection and diagnostics; and
 - deterministic automation suitable for GitHub Actions.
 
+## ChatGPT and Codex plugin
+
+The internal plugin is branded as **dbt Agents** and packages the existing authenticated remote
+connection with a guided setup workflow. From this checkout, install it with:
+
+```bash
+make plugin-install
+```
+
+Restart the ChatGPT desktop app, choose **The Data Strategist Internal** in the Plugins Directory,
+and install **dbt Agents**. See [Plugin distribution](docs/plugin-distribution.md) for team setup,
+validation, and the requirements that remain before a public submission.
+
 Direct warehouse queries are read-only. dbt is the only tool path permitted to
 write warehouse relations, and only in explicitly allowlisted dbt datasets.
 

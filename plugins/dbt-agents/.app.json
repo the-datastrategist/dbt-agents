@@ -1,0 +1,8 @@
+{
+  "apps": {
+    "dbt-agents": {
+      "id": "asdk_app_6ac8ba5335cc81919a354d935544cacb",
+      "required": true
+    }
+  }
+}

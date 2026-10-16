@@ -1,0 +1,35 @@
+{
+  "name": "dbt-agents",
+  "version": "0.1.0",
+  "description": "Policy-enforced tools for reviewing, querying, testing, and safely changing dbt projects and their warehouses.",
+  "author": {
+    "name": "The Data Strategist",
+    "url": "https://thedatastrategist.com"
+  },
+  "homepage": "https://github.com/the-datastrategist/dbt-agents",
+  "repository": "https://github.com/the-datastrategist/dbt-agents",
+  "license": "Apache-2.0",
+  "apps": "./.app.json",
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "dbt Agents",
+    "shortDescription": "Safe AI workflows for dbt",
+    "longDescription": "Review dbt projects, inspect lineage and readiness, run bounded read-only warehouse queries, compile and test selected resources, and apply guarded repository or dbt changes through explicit plans and approvals. Internal access is limited to approved accounts and configured project boundaries.",
+    "developerName": "The Data Strategist",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Review dbt projects and readiness",
+      "Inspect repositories and lineage",
+      "Run bounded read-only warehouse queries",
+      "Plan and execute guarded dbt changes"
+    ],
+    "defaultPrompt": [
+      "List the dbt projects I can access and summarize their readiness.",
+      "Inspect this dbt project and explain its model lineage.",
+      "Estimate and run a bounded read-only warehouse query."
+    ],
+    "brandColor": "#5B3FD1",
+    "composerIcon": "./assets/dbt-agents-icon.svg",
+    "logo": "./assets/dbt-agents-icon.svg"
+  }
+}

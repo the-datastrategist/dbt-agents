@@ -1,0 +1,20 @@
+{
+  "name": "thedatastrategist-internal",
+  "interface": {
+    "displayName": "The Data Strategist Internal"
+  },
+  "plugins": [
+    {
+      "name": "dbt-agents",
+      "source": {
+        "source": "local",
+        "path": "./plugins/dbt-agents"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}
