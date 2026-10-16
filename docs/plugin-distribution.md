@@ -73,7 +73,7 @@ A future public package would need to:
 3. Publish product, support, privacy-policy, and terms-of-service pages on an owned domain.
 4. Complete OpenAI developer verification, domain verification, review cases, and the walkthrough.
 5. Obtain a positive eligibility determination for dbt Agents as an original, policy-enforced dbt
-   workflow product rather than an unofficial BigQuery pass-through connector.
+   analytics product rather than an unofficial BigQuery pass-through connector.
 
 Until those conditions are met, workspace or repository distribution is the simpler and safer
 release channel.

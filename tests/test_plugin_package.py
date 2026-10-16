@@ -32,7 +32,7 @@ def test_plugin_is_branded_as_dbt_agents() -> None:
     assert manifest["skills"] == "./skills/"
     assert interface["displayName"] == "dbt Agents"
     assert interface["category"] == "Developer Tools"
-    assert interface["shortDescription"] == "Safe AI workflows for dbt"
+    assert interface["shortDescription"] == "Read-only analytics for dbt marts"
 
     listing_text = " ".join(
         [
@@ -52,8 +52,9 @@ def test_plugin_is_branded_as_dbt_agents() -> None:
 def test_get_started_skill_is_packaged() -> None:
     skill = (PLUGIN / "skills" / "get-started" / "SKILL.md").read_text()
     assert "name: dbt-agents-get-started" in skill
-    assert "project_list" in skill
-    assert "project_readiness" in skill
+    assert "list_datasets" in skill
+    assert "search_data_dictionary" in skill
+    assert "estimate_query_cost" in skill
     assert "Do not request credentials or tokens" in skill
 
 

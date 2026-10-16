@@ -27,8 +27,8 @@ install **dbt Agents**, and connect with an approved Google account. See
 [Plugin distribution](docs/plugin-distribution.md) for team setup, validation, and the requirements
 that remain before a public submission.
 
-Direct warehouse queries are read-only. dbt is the only tool path permitted to
-write warehouse relations, and only in explicitly allowlisted dbt datasets.
+The hosted internal plugin exposes only bounded, read-only access to the approved dbt mart. The
+local toolkit retains its separate plan-and-approval workflow for dbt changes.
 
 ## Quick start
 
