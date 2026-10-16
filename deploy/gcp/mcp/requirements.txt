@@ -1,0 +1,10 @@
+mcp==1.23.3
+google-cloud-bigquery==3.38.0
+google-cloud-storage==3.6.0
+google-auth==2.43.0
+sqlglot==28.3.0
+PyJWT==2.10.1
+uvicorn==0.38.0
+python-multipart==0.0.20
+httpx==0.28.1
+

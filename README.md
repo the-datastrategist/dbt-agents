@@ -23,8 +23,9 @@ make plugin-install
 ```
 
 Restart the ChatGPT desktop app, choose **The Data Strategist Internal** in the Plugins Directory,
-and install **dbt Agents**. See [Plugin distribution](docs/plugin-distribution.md) for team setup,
-validation, and the requirements that remain before a public submission.
+install **dbt Agents**, and connect with an approved Google account. See
+[Plugin distribution](docs/plugin-distribution.md) for team setup, validation, and the requirements
+that remain before a public submission.
 
 Direct warehouse queries are read-only. dbt is the only tool path permitted to
 write warehouse relations, and only in explicitly allowlisted dbt datasets.

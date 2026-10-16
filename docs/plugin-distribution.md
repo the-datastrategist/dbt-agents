@@ -13,9 +13,9 @@ make plugin-install
 ```
 
 Then restart the ChatGPT desktop app, open the Plugins Directory, choose **The Data Strategist
-Internal**, and install **dbt Agents**. The required app currently uses the hosted service's
-configured identity rather than a per-user sign-in, so workspace role access and configured
-project boundaries determine what a teammate can use.
+Internal**, and install **dbt Agents**. When prompted, connect with an approved Google account.
+The hosted service requires both workspace access and membership in its internal OAuth allowlist.
+It does not accept credentials or service-account keys from chat.
 
 The equivalent manual commands are:
 
@@ -39,9 +39,25 @@ codex plugin marketplace add the-datastrategist/dbt-agents --ref main
 codex plugin add dbt-agents@thedatastrategist-internal
 ```
 
-The registered MCP app currently uses no per-user authorization. Do not put access tokens, OAuth
-client secrets, service-account keys, or reviewer credentials in this repository. Workspace admins
-must make the required app available to intended roles; the app reference does not grant access.
+The registered MCP app uses per-user Google OAuth. The Google Auth Platform app stays in
+**External / Testing** mode, and every teammate must be listed as both an OAuth test user and in
+the Cloud Run service's `AUTHORIZED_EMAILS` setting. Do not put access tokens, OAuth client
+secrets, service-account keys, or reviewer credentials in this repository. Workspace admins must
+also make the required app available to intended roles; the app reference alone does not grant
+access.
+
+Current internal test users:
+
+- `gordon.silvera@gmail.com`
+- `giacomohasbani14@gmail.com`
+
+The hosted service runs in Google Cloud project `verdant-abacus-481415-d2` at
+`https://verdant-abacus-481415-d2.web.app/mcp`. Firebase Hosting provides the stable public URL
+and proxies requests to the `dbt-agents-mcp` Cloud Run service. The service exposes only the
+`keylo_dbt_marts` dataset and uses its own query identity and bounded read-only policy. To add a
+teammate, update both the Google Auth Platform test-user list and the comma-delimited
+`AUTHORIZED_EMAILS` Cloud Run environment value, then ask that teammate to install and connect
+the plugin with the same Google address.
 
 ## Public submission decision
 

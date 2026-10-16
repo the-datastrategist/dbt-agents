@@ -16,7 +16,7 @@ def test_internal_plugin_wraps_the_registered_dbt_agents_app() -> None:
     assert app == {
         "apps": {
             "dbt-agents": {
-                "id": "asdk_app_6ac8ba5335cc81919a354d935544cacb",
+                "id": "asdk_app_6ad2148876688191acba1d6ed6a425bb",
                 "required": True,
             }
         }

@@ -1,0 +1,20 @@
+{
+  "hosting": {
+    "site": "verdant-abacus-481415-d2",
+    "public": "deploy/gcp/mcp/firebase-public",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "run": {
+          "serviceId": "dbt-agents-mcp",
+          "region": "us-central1"
+        }
+      }
+    ]
+  }
+}
