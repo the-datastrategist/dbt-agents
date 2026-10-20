@@ -1,8 +1,9 @@
 # dbt Agents plugin distribution
 
-The supported distribution path is currently **internal**. The package wraps the registered
+The supported distribution path is currently **internal**. The Keylo package wraps the registered
 remote dbt Agents MCP connection and gives it stable product metadata, a guided first-run skill,
-and a repository marketplace entry.
+and a repository marketplace entry. Brand Monitor is intentionally a separate app and service;
+see [Brand Monitor plugin distribution](brand-monitor-plugin-distribution.md).
 
 ## Install from this checkout
 
@@ -58,6 +59,10 @@ and proxies requests to the `dbt-agents-mcp` Cloud Run service. The service expo
 teammate, update both the Google Auth Platform test-user list and the comma-delimited
 `AUTHORIZED_EMAILS` Cloud Run environment value, then ask that teammate to install and connect
 the plugin with the same Google address.
+
+Do not reuse this Keylo connection for Brand Monitor. The Brand Monitor service has a different
+identity, endpoint, OAuth allowlist, and exact `project.dataset` allowlist so neither product can
+read the other's warehouse data.
 
 ## Public submission decision
 

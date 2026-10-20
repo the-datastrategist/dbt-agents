@@ -1,2 +1,5 @@
 [plugins."dbt-agents@thedatastrategist-internal"]
 enabled = true
+
+[plugins."dbt-agents-brand-monitor@thedatastrategist-internal"]
+enabled = true

@@ -25,7 +25,9 @@ make plugin-install
 Restart the ChatGPT desktop app, choose **The Data Strategist Internal** in the Plugins Directory,
 install **dbt Agents**, and connect with an approved Google account. See
 [Plugin distribution](docs/plugin-distribution.md) for team setup, validation, and the requirements
-that remain before a public submission.
+that remain before a public submission. Brand Monitor uses a separate hosted connection; see
+[Brand Monitor plugin distribution](docs/brand-monitor-plugin-distribution.md) for its exact
+project boundary and teammate onboarding flow.
 
 The hosted internal plugin exposes only bounded, read-only access to the approved dbt mart. The
 local toolkit retains its separate plan-and-approval workflow for dbt changes.

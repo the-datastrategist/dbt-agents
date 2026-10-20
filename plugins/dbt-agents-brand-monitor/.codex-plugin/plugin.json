@@ -1,0 +1,35 @@
+{
+  "name": "dbt-agents-brand-monitor",
+  "version": "0.1.0",
+  "description": "Authenticated, read-only access to approved Brand Monitor dbt marts in BigQuery.",
+  "author": {
+    "name": "The Data Strategist",
+    "url": "https://thedatastrategist.com"
+  },
+  "homepage": "https://github.com/the-datastrategist/dbt-agents",
+  "repository": "https://github.com/the-datastrategist/dbt-agents",
+  "license": "Apache-2.0",
+  "apps": "./.app.json",
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "dbt Agents — Brand Monitor",
+    "shortDescription": "Read-only Brand Monitor dbt analytics",
+    "longDescription": "Explore only the approved Brand Monitor dbt marts in development and production. Search documented tables and columns, inspect schemas, preview bounded samples, estimate query cost, and run guarded read-only SQL. The app has no access to operational datasets or Keylo data.",
+    "developerName": "The Data Strategist",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Discover the approved Brand Monitor dbt marts",
+      "Search documented Brand Monitor tables and columns",
+      "Inspect schemas and preview bounded samples",
+      "Estimate and run guarded read-only queries"
+    ],
+    "defaultPrompt": [
+      "List the Brand Monitor datasets and tables I can access.",
+      "Search the Brand Monitor data dictionary for a metric, then explain the relevant tables and columns.",
+      "Estimate and run a bounded read-only query against an approved Brand Monitor mart."
+    ],
+    "brandColor": "#5B3FD1",
+    "composerIcon": "./assets/dbt-agents-icon.svg",
+    "logo": "./assets/dbt-agents-icon.svg"
+  }
+}
