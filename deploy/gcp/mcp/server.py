@@ -9,7 +9,7 @@ import os
 import re
 import secrets
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from urllib.parse import urlencode, urlparse
 
@@ -17,8 +17,7 @@ import google.auth.transport.requests
 import jwt
 import sqlglot
 from google.api_core.exceptions import PreconditionFailed
-from google.cloud import bigquery
-from google.cloud import storage
+from google.cloud import bigquery, storage
 from google.oauth2 import id_token
 from mcp.server.fastmcp import FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
@@ -28,7 +27,7 @@ from starlette.applications import Starlette
 from starlette.middleware import Middleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
-from starlette.responses import HTMLResponse, JSONResponse, RedirectResponse
+from starlette.responses import HTMLResponse, JSONResponse
 from starlette.routing import Mount, Route
 
 logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
@@ -36,10 +35,50 @@ logger = logging.getLogger("bigquery_mcp")
 
 PROJECT_ID = os.environ["GCP_PROJECT_ID"]
 BILLING_PROJECT = os.getenv("BIGQUERY_BILLING_PROJECT_ID", PROJECT_ID)
-ALLOWED_DATASETS = frozenset(
-    value.strip()
-    for value in os.environ["BIGQUERY_ALLOWED_DATASETS"].split(",")
-    if value.strip()
+FIREBASE_PROJECT_ID = os.getenv("FIREBASE_PROJECT_ID", PROJECT_ID)
+CONTROL_PROJECT_ID = os.getenv("CONTROL_PROJECT_ID", BILLING_PROJECT)
+
+
+def _allowed_project_datasets() -> frozenset[tuple[str, str]]:
+    configured_pairs = os.getenv("BIGQUERY_ALLOWED_PROJECT_DATASETS", "")
+    if configured_pairs.strip():
+        pairs: set[tuple[str, str]] = set()
+        for value in configured_pairs.split(","):
+            reference = value.strip()
+            if not reference:
+                continue
+            parts = reference.split(".")
+            if len(parts) != 2 or not all(parts):
+                raise RuntimeError(
+                    "BIGQUERY_ALLOWED_PROJECT_DATASETS entries must use project.dataset"
+                )
+            pairs.add((parts[0], parts[1]))
+        return frozenset(pairs)
+
+    # Backwards-compatible configuration for single-project deployments.
+    return frozenset(
+        (PROJECT_ID, value.strip())
+        for value in os.getenv("BIGQUERY_ALLOWED_DATASETS", "").split(",")
+        if value.strip()
+    )
+
+
+ALLOWED_PROJECT_DATASETS = _allowed_project_datasets()
+DATASET_PROJECTS: dict[str, str] = {}
+for allowed_project, allowed_dataset in ALLOWED_PROJECT_DATASETS:
+    existing_project = DATASET_PROJECTS.get(allowed_dataset)
+    if existing_project and existing_project != allowed_project:
+        raise RuntimeError(
+            "Allowed dataset IDs must be unique across projects so tool calls cannot be ambiguous"
+        )
+    DATASET_PROJECTS[allowed_dataset] = allowed_project
+ALLOWED_DATASETS = frozenset(DATASET_PROJECTS)
+DATA_DICTIONARY_PROJECT_ID = os.getenv("DATA_DICTIONARY_PROJECT_ID", PROJECT_ID)
+DATA_DICTIONARY_DATASET_ID = os.getenv(
+    "DATA_DICTIONARY_DATASET_ID",
+    "keylo_dbt_marts"
+    if "keylo_dbt_marts" in ALLOWED_DATASETS
+    else next(iter(sorted(ALLOWED_DATASETS)), ""),
 )
 MAXIMUM_BYTES_BILLED = int(os.getenv("MAXIMUM_BYTES_BILLED", str(1024**3)))
 MAXIMUM_RESULT_ROWS = min(int(os.getenv("MAXIMUM_RESULT_ROWS", "1000")), 1000)
@@ -58,17 +97,23 @@ MCP_RESOURCE = f"{SERVER_URL}/mcp"
 MCP_ALLOWED_HOSTS = frozenset(
     {
         urlparse(SERVER_URL).netloc,
-        *(value.strip().lower() for value in os.getenv("MCP_ALLOWED_HOSTS", "").split(",") if value.strip()),
+        *(
+            value.strip().lower()
+            for value in os.getenv("MCP_ALLOWED_HOSTS", "").split(",")
+            if value.strip()
+        ),
     }
 )
 SIGNING_SECRET = os.environ["OAUTH_SIGNING_SECRET"]
 FIREBASE_API_KEY = os.environ["FIREBASE_API_KEY"]
-FIREBASE_AUTH_DOMAIN = os.getenv(
-    "FIREBASE_AUTH_DOMAIN", f"{PROJECT_ID}.firebaseapp.com"
-)
+FIREBASE_AUTH_DOMAIN = os.getenv("FIREBASE_AUTH_DOMAIN", f"{FIREBASE_PROJECT_ID}.firebaseapp.com")
 
-if not ALLOWED_DATASETS:
-    raise RuntimeError("BIGQUERY_ALLOWED_DATASETS must not be empty")
+if not ALLOWED_PROJECT_DATASETS:
+    raise RuntimeError(
+        "BIGQUERY_ALLOWED_PROJECT_DATASETS or BIGQUERY_ALLOWED_DATASETS must not be empty"
+    )
+if (DATA_DICTIONARY_PROJECT_ID, DATA_DICTIONARY_DATASET_ID) not in ALLOWED_PROJECT_DATASETS:
+    raise RuntimeError("The configured data dictionary dataset must be allowlisted")
 if not AUTHORIZED_EMAILS:
     raise RuntimeError("AUTHORIZED_EMAILS must not be empty")
 if MAXIMUM_BYTES_BILLED <= 0:
@@ -77,7 +122,7 @@ if len(SIGNING_SECRET) < 32:
     raise RuntimeError("OAUTH_SIGNING_SECRET must contain at least 32 characters")
 
 bq = bigquery.Client(project=BILLING_PROJECT)
-storage_client = storage.Client(project=PROJECT_ID)
+storage_client = storage.Client(project=CONTROL_PROJECT_ID)
 cost_bucket = storage_client.bucket(COST_BUCKET)
 google_request = google.auth.transport.requests.Request()
 authenticated_email: contextvars.ContextVar[str | None] = contextvars.ContextVar(
@@ -96,7 +141,7 @@ IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 def _audit(tool: str, status: str, **fields: Any) -> None:
     record = {
         "event": "bigquery_mcp_audit",
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "subject": authenticated_email.get(),
         "tool": tool,
         "status": status,
@@ -119,7 +164,7 @@ def validate_sql(sql: str) -> set[str]:
     if len(statements) != 1:
         raise ValueError("Exactly one SQL statement is allowed")
     statement = statements[0]
-    if not isinstance(statement, (exp.Select, exp.Union, exp.Intersect, exp.Except)):
+    if not isinstance(statement, exp.Select | exp.Union | exp.Intersect | exp.Except):
         raise ValueError("Only SELECT or WITH queries are allowed")
     dangerous = (
         exp.Insert,
@@ -149,11 +194,13 @@ def validate_sql(sql: str) -> set[str]:
         dataset = table.db
         if not dataset:
             raise ValueError("Every table must use a project.dataset.table reference")
-        if project and project != PROJECT_ID:
-            raise ValueError(f"Cross-project reference is prohibited: {project}")
-        if dataset not in ALLOWED_DATASETS:
-            raise ValueError(f"Dataset is not approved: {dataset}")
-        datasets.add(dataset)
+        if not project:
+            raise ValueError(
+                "Every table must use a fully qualified project.dataset.table reference"
+            )
+        if (project, dataset) not in ALLOWED_PROJECT_DATASETS:
+            raise ValueError(f"Project and dataset are not approved: {project}.{dataset}")
+        datasets.add(f"{project}.{dataset}")
     if not datasets:
         raise ValueError("Query must reference at least one approved dataset")
     return datasets
@@ -171,7 +218,7 @@ def _query_config(dry_run: bool) -> bigquery.QueryJobConfig:
 
 def _reserve_monthly_bytes(estimated_bytes: int) -> int:
     """Atomically reserve estimated bytes in a dedicated GCS monthly ledger."""
-    month = datetime.now(timezone.utc).strftime("%Y-%m")
+    month = datetime.now(UTC).strftime("%Y-%m")
     blob = cost_bucket.blob(f"usage/{month}.json")
     for _ in range(8):
         try:
@@ -190,7 +237,7 @@ def _reserve_monthly_bytes(estimated_bytes: int) -> int:
             "month": month,
             "reserved_bytes": proposed,
             "limit_bytes": MONTHLY_BYTES_LIMIT,
-            "updated_at": datetime.now(timezone.utc).isoformat(),
+            "updated_at": datetime.now(UTC).isoformat(),
         }
         try:
             blob.upload_from_string(
@@ -206,7 +253,7 @@ def _reserve_monthly_bytes(estimated_bytes: int) -> int:
 
 
 def _json_value(value: Any) -> Any:
-    if isinstance(value, (datetime,)):
+    if isinstance(value, datetime):
         return value.isoformat()
     if hasattr(value, "isoformat"):
         return value.isoformat()
@@ -225,9 +272,11 @@ def _schema_field(field: bigquery.SchemaField) -> dict[str, Any]:
     }
 
 
-def _require_dataset(dataset_id: str) -> None:
-    if dataset_id not in ALLOWED_DATASETS:
+def _require_dataset(dataset_id: str) -> str:
+    project_id = DATASET_PROJECTS.get(dataset_id)
+    if project_id is None:
         raise ValueError("Dataset is not approved")
+    return project_id
 
 
 def _require_identifier(value: str, label: str) -> None:
@@ -267,8 +316,8 @@ READ_ONLY_TOOL = ToolAnnotations(
 def list_datasets() -> list[dict[str, Any]]:
     """List only BigQuery datasets approved for this connection."""
     result = []
-    for dataset_id in sorted(ALLOWED_DATASETS):
-        dataset = bq.get_dataset(f"{PROJECT_ID}.{dataset_id}")
+    for project_id, dataset_id in sorted(ALLOWED_PROJECT_DATASETS):
+        dataset = bq.get_dataset(f"{project_id}.{dataset_id}")
         result.append(
             {
                 "project_id": dataset.project,
@@ -278,16 +327,20 @@ def list_datasets() -> list[dict[str, Any]]:
                 "location": dataset.location,
             }
         )
-    _audit("list_datasets", "success", datasets=sorted(ALLOWED_DATASETS))
+    _audit(
+        "list_datasets",
+        "success",
+        datasets=[f"{project}.{dataset}" for project, dataset in sorted(ALLOWED_PROJECT_DATASETS)],
+    )
     return result
 
 
 @mcp.tool(annotations=READ_ONLY_TOOL)
 def list_tables(dataset_id: str) -> list[dict[str, Any]]:
     """List up to 500 tables and views in an approved dataset."""
-    _require_dataset(dataset_id)
+    project_id = _require_dataset(dataset_id)
     result = []
-    for item in list(bq.list_tables(f"{PROJECT_ID}.{dataset_id}", max_results=500))[:500]:
+    for item in list(bq.list_tables(f"{project_id}.{dataset_id}", max_results=500))[:500]:
         table = bq.get_table(item.reference)
         result.append(
             {
@@ -304,9 +357,9 @@ def list_tables(dataset_id: str) -> list[dict[str, Any]]:
 @mcp.tool(annotations=READ_ONLY_TOOL)
 def get_table_schema(dataset_id: str, table_id: str) -> dict[str, Any]:
     """Inspect schema, partitioning, and clustering for an approved table or view."""
-    _require_dataset(dataset_id)
+    project_id = _require_dataset(dataset_id)
     _require_identifier(table_id, "table ID")
-    table = bq.get_table(f"{PROJECT_ID}.{dataset_id}.{table_id}")
+    table = bq.get_table(f"{project_id}.{dataset_id}.{table_id}")
     result = {
         "project_id": table.project,
         "dataset_id": table.dataset_id,
@@ -336,12 +389,13 @@ def search_data_dictionary(
         _require_identifier(table_id, "table ID")
     search_term = str(search_term).strip()[:500]
     limit = max(1, min(int(limit), 250))
+    dictionary_prefix = f"{DATA_DICTIONARY_PROJECT_ID}.{DATA_DICTIONARY_DATASET_ID}"
     sql = f"""
     WITH table_descriptions AS (
       SELECT
         table_name,
         MAX(IF(option_name = 'description', option_value, NULL)) AS table_description
-      FROM `{PROJECT_ID}.keylo_dbt_marts.INFORMATION_SCHEMA.TABLE_OPTIONS`
+      FROM `{dictionary_prefix}.INFORMATION_SCHEMA.TABLE_OPTIONS`
       GROUP BY table_name
     )
     SELECT
@@ -351,7 +405,7 @@ def search_data_dictionary(
       fields.field_path,
       fields.data_type,
       fields.description AS column_description
-    FROM `{PROJECT_ID}.keylo_dbt_marts.INFORMATION_SCHEMA.COLUMN_FIELD_PATHS` AS fields
+    FROM `{dictionary_prefix}.INFORMATION_SCHEMA.COLUMN_FIELD_PATHS` AS fields
     LEFT JOIN table_descriptions AS tables USING (table_name)
     WHERE (@table_id IS NULL OR fields.table_name = @table_id)
       AND (
@@ -384,7 +438,7 @@ def search_data_dictionary(
     _audit(
         "search_data_dictionary",
         "success",
-        datasets=["keylo_dbt_marts"],
+        datasets=[f"{DATA_DICTIONARY_PROJECT_ID}.{DATA_DICTIONARY_DATASET_ID}"],
         job_id=job.job_id,
         row_count=len(rows),
     )
@@ -394,10 +448,10 @@ def search_data_dictionary(
 @mcp.tool(annotations=READ_ONLY_TOOL)
 def preview_table(dataset_id: str, table_id: str, limit: int = 20) -> dict[str, Any]:
     """Preview at most 100 rows. Returned rows may contain sensitive data."""
-    _require_dataset(dataset_id)
+    project_id = _require_dataset(dataset_id)
     _require_identifier(table_id, "table ID")
     limit = max(1, min(int(limit), 100))
-    table = bq.get_table(f"{PROJECT_ID}.{dataset_id}.{table_id}")
+    table = bq.get_table(f"{project_id}.{dataset_id}.{table_id}")
     sql = f"SELECT * FROM `{table.project}.{table.dataset_id}.{table.table_id}` LIMIT @row_limit"
     config = _query_config(False)
     config.query_parameters = [bigquery.ScalarQueryParameter("row_limit", "INT64", limit)]
@@ -409,7 +463,9 @@ def preview_table(dataset_id: str, table_id: str, limit: int = 20) -> dict[str, 
     payload = {"rows": rows, "row_count": len(rows), "job_id": job.job_id}
     if len(json.dumps(payload, default=str).encode()) > MAX_RESPONSE_BYTES:
         raise ValueError("Preview response exceeds the configured size limit")
-    _audit("preview_table", "success", datasets=[dataset_id], job_id=job.job_id, row_count=len(rows))
+    _audit(
+        "preview_table", "success", datasets=[dataset_id], job_id=job.job_id, row_count=len(rows)
+    )
     return payload
 
 
@@ -494,7 +550,7 @@ def _consume_authorization_code(code_id: str) -> None:
     try:
         blob.upload_from_string(
             json.dumps(
-                {"consumed_at": datetime.now(timezone.utc).isoformat()},
+                {"consumed_at": datetime.now(UTC).isoformat()},
                 separators=(",", ":"),
             ),
             content_type="application/json",
@@ -543,7 +599,7 @@ class BearerMiddleware(BaseHTTPMiddleware):
                 payload = _decode(header[7:], "access")
                 subject_token = authenticated_email.set(payload["email"].lower())
             except jwt.PyJWTError:
-                metadata = f'{SERVER_URL}/.well-known/oauth-protected-resource'
+                metadata = f"{SERVER_URL}/.well-known/oauth-protected-resource"
                 return JSONResponse(
                     {"error": "unauthorized"},
                     status_code=401,
@@ -653,7 +709,7 @@ import {{ getAuth, GoogleAuthProvider, signInWithPopup }} from "https://www.gsta
 const app = initializeApp({{
   apiKey: {json.dumps(FIREBASE_API_KEY)},
   authDomain: {json.dumps(FIREBASE_AUTH_DOMAIN)},
-  projectId: {json.dumps(PROJECT_ID)}
+  projectId: {json.dumps(FIREBASE_PROJECT_ID)}
 }});
 document.getElementById("login").onclick = async () => {{
   try {{
@@ -661,7 +717,10 @@ document.getElementById("login").onclick = async () => {{
     const firebaseToken = await result.user.getIdToken(true);
     const response = await fetch("/oauth/complete", {{
       method: "POST", headers: {{"content-type":"application/json"}},
-      body: JSON.stringify({{firebase_token: firebaseToken, login_state: {json.dumps(state_payload)}}})
+      body: JSON.stringify({{
+        firebase_token: firebaseToken,
+        login_state: {json.dumps(state_payload)}
+      }})
     }});
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || "Authorization failed");
@@ -675,11 +734,9 @@ document.getElementById("login").onclick = async () => {{
 async def complete(request: Request) -> JSONResponse:
     try:
         body = await request.json()
-        state_payload = _decode(
-            body["login_state"], "login", require_authorized_subject=False
-        )
+        state_payload = _decode(body["login_state"], "login", require_authorized_subject=False)
         claims = id_token.verify_firebase_token(
-            body["firebase_token"], google_request, audience=PROJECT_ID
+            body["firebase_token"], google_request, audience=FIREBASE_PROJECT_ID
         )
         email = claims.get("email", "").lower()
         if email not in AUTHORIZED_EMAILS or not claims.get("email_verified"):
@@ -699,7 +756,7 @@ async def complete(request: Request) -> JSONResponse:
         params = {"code": code}
         if state_payload.get("state"):
             params["state"] = state_payload["state"]
-        redirect = f'{state_payload["redirect_uri"]}?{urlencode(params)}'
+        redirect = f"{state_payload['redirect_uri']}?{urlencode(params)}"
         return JSONResponse({"redirect": redirect})
     except Exception as exc:
         logger.warning("OAuth completion rejected: %s", type(exc).__name__)
@@ -718,7 +775,11 @@ async def token_endpoint(request: Request) -> JSONResponse:
             if code["client_id"] != client_id or code["redirect_uri"] != redirect_uri:
                 raise ValueError("Code binding mismatch")
             verifier = str(form["code_verifier"])
-            challenge = base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).rstrip(b"=").decode()
+            challenge = (
+                base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest())
+                .rstrip(b"=")
+                .decode()
+            )
             if not secrets.compare_digest(challenge, code["code_challenge"]):
                 raise ValueError("PKCE verification failed")
             _consume_authorization_code(code["jti"])
@@ -776,4 +837,3 @@ if __name__ == "__main__":
     import uvicorn
 
     uvicorn.run(app, host="0.0.0.0", port=int(os.getenv("PORT", "8080")))
-

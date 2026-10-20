@@ -4,8 +4,8 @@ install:
 	python3 -m pip install -e '.[all,dev]'
 
 lint:
-	python3 -m ruff check src tests
-	python3 -m ruff format --check src tests
+	python3 -m ruff check src tests deploy/gcp/mcp/server.py
+	python3 -m ruff format --check src tests deploy/gcp/mcp/server.py
 
 test:
 	python3 -m pytest -q
@@ -21,3 +21,4 @@ plugin-check:
 plugin-install: plugin-check
 	codex plugin marketplace add "$(CURDIR)"
 	codex plugin add dbt-agents@thedatastrategist-internal
+	codex plugin add dbt-agents-brand-monitor@thedatastrategist-internal

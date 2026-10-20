@@ -1,0 +1,8 @@
+{
+  "apps": {
+    "dbt-agents-brand-monitor": {
+      "id": "asdk_app_6ad6d477a15481918444081adbb316b4",
+      "required": true
+    }
+  }
+}
