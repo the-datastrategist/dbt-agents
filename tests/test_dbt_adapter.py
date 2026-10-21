@@ -76,6 +76,30 @@ def test_compile_uses_minimal_environment_and_disables_introspection(
     assert "UNRELATED_HOST_SECRET" not in captured["env"]
 
 
+def test_run_passes_approved_vars_as_single_json_argument(
+    project_config: ProjectConfig, monkeypatch
+) -> None:
+    adapter = DbtAdapter(project_config)
+    captured = {}
+
+    def fake_run_command(argv, **kwargs):
+        captured["argv"] = argv
+        return CommandResult(
+            argv=argv,
+            cwd=str(adapter.project_dir),
+            exit_code=0,
+            stdout="",
+            stderr="",
+            duration_ms=1,
+        )
+
+    monkeypatch.setattr("dbt_agents.adapters.dbt.run_command", fake_run_command)
+    adapter.run("build", selector="model", vars={"release_id": "r1", "window": 4})
+
+    vars_index = captured["argv"].index("--vars")
+    assert captured["argv"][vars_index + 1] == '{"release_id":"r1","window":4}'
+
+
 def test_read_only_dbt_commands_use_query_credentials(
     project_config: ProjectConfig, monkeypatch
 ) -> None:

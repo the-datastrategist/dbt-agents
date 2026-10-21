@@ -227,17 +227,20 @@ class DbtAgentsService:
         full_refresh: bool,
         approved: bool,
         plan_id: str,
+        vars: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         runtime = self._runtime(project)
         if command not in {"run", "build"}:
             return self._error(
                 runtime, "dbt_execute", PolicyDenied("only dbt run/build are executable")
             )
+        approved_vars = vars or {}
         details = {
             "command": command,
             "selector": selector,
             "target": target,
             "full_refresh": full_refresh,
+            "vars": approved_vars,
         }
         try:
             level = self._dbt_level(runtime, target)
@@ -255,7 +258,9 @@ class DbtAgentsService:
             "dbt_execute",
             decision,
             details,
-            lambda: self._run_dbt_with_resolution(runtime, command, selector, target, full_refresh),
+            lambda: self._run_dbt_with_resolution(
+                runtime, command, selector, target, full_refresh, approved_vars
+            ),
         )
 
     def warehouse_describe(self, project: str, relation: str) -> dict[str, Any]:
@@ -432,6 +437,7 @@ class DbtAgentsService:
         selector: str,
         target: str | None,
         full_refresh: bool,
+        vars: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         dataset = runtime.dbt.target_dataset(target)
         nodes = runtime.dbt.resolve_selector(selector, target)
@@ -455,6 +461,7 @@ class DbtAgentsService:
             selector=selector,
             target=target,
             full_refresh=full_refresh,
+            vars=vars,
         )
         execution["preflight"] = {
             "resolved_nodes": [

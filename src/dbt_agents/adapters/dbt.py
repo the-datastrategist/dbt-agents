@@ -81,12 +81,14 @@ class DbtAdapter:
         selector: str | None = None,
         target: str | None = None,
         full_refresh: bool = False,
+        vars: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         result = self._execute(
             command,
             selector=selector,
             target=target,
             full_refresh=full_refresh,
+            vars=vars,
         )
         artifacts = self.artifacts()
         return {"command": result.model_dump(), "artifacts": artifacts}
@@ -137,6 +139,7 @@ class DbtAdapter:
         selector: str | None = None,
         target: str | None = None,
         full_refresh: bool = False,
+        vars: dict[str, Any] | None = None,
         output_json: bool = False,
     ) -> CommandResult:
         if command not in self.config.dbt.allowed_commands:
@@ -164,6 +167,8 @@ class DbtAdapter:
         ]
         if selector:
             argv.extend(["--select", selector])
+        if vars:
+            argv.extend(["--vars", json.dumps(vars, sort_keys=True, separators=(",", ":"))])
         if full_refresh:
             argv.append("--full-refresh")
         if output_json:

@@ -144,6 +144,7 @@ def create_server(config_path: str | Path, *, host: str = "127.0.0.1", port: int
         plan_id: str,
         target: str | None = None,
         full_refresh: bool = False,
+        vars: dict[str, Any] | None = None,
         approved: bool = False,
     ) -> dict[str, Any]:
         """Run/build selected dbt nodes after exact planning and approval."""
@@ -153,6 +154,7 @@ def create_server(config_path: str | Path, *, host: str = "127.0.0.1", port: int
             selector,
             target=target,
             full_refresh=full_refresh,
+            vars=vars,
             approved=approved,
             plan_id=plan_id,
         )
