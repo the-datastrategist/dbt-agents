@@ -158,6 +158,44 @@ def test_plan_argument_mismatch_is_rejected(app_config: AppConfig) -> None:
     assert result["error"] == "policy_denied"
 
 
+def test_dbt_preflight_ignores_read_only_sources_and_tests(
+    app_config: AppConfig, monkeypatch
+) -> None:
+    service = DbtAgentsService(app_config)
+    runtime = service._runtime("fixture")
+    monkeypatch.setattr(
+        runtime.dbt,
+        "resolve_selector",
+        lambda selector, target: [
+            {
+                "unique_id": "source.fixture.raw",
+                "resource_type": "source",
+                "database": None,
+                "schema": None,
+            },
+            {
+                "unique_id": "test.fixture.check",
+                "resource_type": "test",
+                "database": "example-project",
+                "schema": "dbt_dev_dbt_test__audit",
+            },
+            {
+                "unique_id": "model.fixture.model",
+                "resource_type": "model",
+                "database": "example-project",
+                "schema": "dbt_dev",
+            },
+        ],
+    )
+    monkeypatch.setattr(
+        runtime.dbt, "run", lambda *args, **kwargs: {"command": {}, "artifacts": {}}
+    )
+
+    result = service._run_dbt_with_resolution(runtime, "build", "model", "dev", False)
+
+    assert result["preflight"]["target_dataset"] == "dbt_dev"
+
+
 def test_mcp_boolean_cannot_self_approve_plan(app_config: AppConfig) -> None:
     service = DbtAgentsService(app_config)
     read = service.repo_read("fixture", "dbt/models/model.sql")

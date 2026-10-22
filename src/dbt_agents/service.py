@@ -441,6 +441,7 @@ class DbtAgentsService:
     ) -> dict[str, Any]:
         dataset = runtime.dbt.target_dataset(target)
         nodes = runtime.dbt.resolve_selector(selector, target)
+        write_resource_types = {"model", "seed", "snapshot"}
         invalid_nodes = [
             {
                 "unique_id": node.get("unique_id"),
@@ -448,8 +449,11 @@ class DbtAgentsService:
                 "schema": node.get("schema"),
             }
             for node in nodes
-            if node.get("database") not in (None, runtime.config.warehouse.project)
+            if node.get("resource_type") in write_resource_types
+            and (
+                node.get("database") not in (None, runtime.config.warehouse.project)
             or node.get("schema") not in runtime.config.warehouse.dbt_write_datasets
+            )
         ]
         if invalid_nodes:
             raise PolicyDenied(
